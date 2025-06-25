@@ -322,6 +322,41 @@ WHITE='\033[1;37m'
 BOLD='\033[1m'
 NC='\033[0m' # No Color
 
+# --- Function to detect the default branch ---
+# Determines the main/master/default branch for comparison
+detect_default_branch() {
+    # First, try to get the default branch from origin
+    local default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+    
+    if [ -n "$default_branch" ]; then
+        echo "$default_branch"
+        return
+    fi
+    
+    # If that fails, check common branch names
+    if git show-ref --verify --quiet refs/remotes/origin/main; then
+        echo "main"
+        return
+    elif git show-ref --verify --quiet refs/remotes/origin/master; then
+        echo "master"
+        return
+    elif git show-ref --verify --quiet refs/heads/main; then
+        echo "main"
+        return
+    elif git show-ref --verify --quiet refs/heads/master; then
+        echo "master"
+        return
+    fi
+    
+    # Last resort: use the current branch or first available branch
+    local current=$(git branch --show-current 2>/dev/null)
+    if [ -n "$current" ]; then
+        echo "$current"
+    else
+        echo "HEAD"
+    fi
+}
+
 # --- Function to calculate lines and commits for a single branch ---
 # Takes branch name as argument
 calculate_branch_stats() {
@@ -339,28 +374,57 @@ calculate_branch_stats() {
 
     echo -e "  ${BLUE}→${NC} Analyzing branch: ${CYAN}$branch${NC}"
 
-    # Determine comparison base (for remote vs local branches)
+    # For current branch analysis, we want all commits on this branch
+    # For multi-branch analysis, we compare against the default branch to avoid double-counting
     local comparison_base=""
-    if [ "$ANALYZE_REMOTE_BRANCHES" = true ]; then
-        comparison_base="^origin/master"
+    if [ "$ANALYZE_CURRENT_BRANCH_ONLY" = true ]; then
+        # When analyzing just the current branch, include all commits
+        comparison_base=""
     else
-        comparison_base="^origin/master"
+        # When analyzing multiple branches, exclude commits that are in the default branch
+        local default_branch=$(detect_default_branch)
+        if [ "$ANALYZE_REMOTE_BRANCHES" = true ]; then
+            comparison_base="^origin/$default_branch"
+        else
+            comparison_base="^$default_branch"
+        fi
+        
+        # Check if the comparison base exists, if not, don't use it
+        if ! git show-ref --verify --quiet "refs/remotes/origin/$default_branch" && ! git show-ref --verify --quiet "refs/heads/$default_branch"; then
+            comparison_base=""
+        fi
     fi
 
-    # Count lines added in commits that are in this branch but NOT in master
-    # This avoids double-counting commits that exist in multiple branches
-    current_branch_total_lines=$(eval "git log --no-merges --first-parent $date_clause \"$branch\" $comparison_base --pretty=format:%H | \
-      xargs -r -I{} git show --format=\"\" --unified=0 {} | \
-      grep -E \"^\+\" | grep -vE \"^\+\+\+\" | wc -l")
+    # Count lines added in commits 
+    if [ -n "$comparison_base" ]; then
+        # Exclude commits that are in the default branch (for multi-branch analysis)
+        current_branch_total_lines=$(eval "git log --no-merges --first-parent $date_clause \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | \
+          xargs -r -I{} git show --format=\"\" --unified=0 {} | \
+          grep -E \"^\+\" | grep -vE \"^\+\+\+\" | wc -l")
 
-    current_branch_ai_lines=$(eval "git log --no-merges --first-parent $date_clause --grep=\"$AI_TAG\" \"$branch\" $comparison_base --pretty=format:%H | \
-      xargs -r -I{} git show --format=\"\" --unified=0 {} | \
-      grep -E \"^\+\" | grep -vE \"^\+\+\+\" | wc -l")
+        current_branch_ai_lines=$(eval "git log --no-merges --first-parent $date_clause --grep=\"$AI_TAG\" \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | \
+          xargs -r -I{} git show --format=\"\" --unified=0 {} | \
+          grep -E \"^\+\" | grep -vE \"^\+\+\+\" | wc -l")
 
-    # Count commits (unique to this branch)
-    current_branch_total_commits=$(eval "git log --no-merges --first-parent $date_clause \"$branch\" $comparison_base --pretty=format:%H | wc -l")
+        # Count commits (unique to this branch)
+        current_branch_total_commits=$(eval "git log --no-merges --first-parent $date_clause \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | wc -l")
 
-    current_branch_ai_commits=$(eval "git log --no-merges --first-parent $date_clause --grep=\"$AI_TAG\" \"$branch\" $comparison_base --pretty=format:%H | wc -l")
+        current_branch_ai_commits=$(eval "git log --no-merges --first-parent $date_clause --grep=\"$AI_TAG\" \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | wc -l")
+    else
+        # Include all commits on this branch (for current branch analysis)
+        current_branch_total_lines=$(eval "git log --no-merges $date_clause \"$branch\" --pretty=format:%H 2>/dev/null | \
+          xargs -r -I{} git show --format=\"\" --unified=0 {} | \
+          grep -E \"^\+\" | grep -vE \"^\+\+\+\" | wc -l")
+
+        current_branch_ai_lines=$(eval "git log --no-merges $date_clause --grep=\"$AI_TAG\" \"$branch\" --pretty=format:%H 2>/dev/null | \
+          xargs -r -I{} git show --format=\"\" --unified=0 {} | \
+          grep -E \"^\+\" | grep -vE \"^\+\+\+\" | wc -l")
+
+        # Count commits
+        current_branch_total_commits=$(eval "git log --no-merges $date_clause \"$branch\" --pretty=format:%H 2>/dev/null | wc -l")
+
+        current_branch_ai_commits=$(eval "git log --no-merges $date_clause --grep=\"$AI_TAG\" \"$branch\" --pretty=format:%H 2>/dev/null | wc -l")
+    fi
 
     # Calculate percentages for this branch
     if [ "$current_branch_total_commits" -gt 0 ]; then
