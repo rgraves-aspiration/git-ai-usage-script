@@ -64,6 +64,8 @@ ai --from="2024-01-01"      # Since specific date
 # Advanced usage
 ai --local --exclude="staging|temp" -v  # Exclude patterns, verbose output
 ai --remote --include="main" --from="1w" # Remote main branch, past week
+ai --pattern="\[AI-GENERATED\]" --local  # Custom AI tag pattern
+ai --pattern="Co-authored-by.*copilot"   # GitHub Copilot format
 ```
 
 ## 📊 Sample Output
@@ -102,18 +104,32 @@ AI lines ratio:    92.7%
 
 ## ⚙️ Configuration
 
-The script looks for commit messages containing `[AI` by default. You can customize this by editing the `AI_TAG` variable in the script:
+The script looks for commit messages containing `[AI` by default. You can customize this using the `--pattern` flag:
 
 ```bash
 # For exact match: [AI-GENERATED]
-AI_TAG='\[AI-GENERATED\]'
+ai --pattern="\[AI-GENERATED\]" --local
 
 # For any AI prefix: [AI-ASSISTED], [AI-GENERATED], etc.
-AI_TAG='\[AI'
+ai --pattern="\[AI" --local
 
 # For different formats: (AI), <AI>, etc.
-AI_TAG='\(AI'
+ai --pattern="\(AI\)" --local
+
+# For GitHub Copilot format
+ai --pattern="Co-authored-by.*copilot" --local
 ```
+
+**Tip**: Use the `--pattern` flag with any analysis command to customize AI detection on the fly!
+
+### 🔧 Installation Notes
+
+During installation, the script will:
+- Check if an `ai` alias already exists
+- Prompt you to replace it, create a different alias, or skip alias creation
+- Automatically add the install directory to your PATH if needed
+
+This ensures safe installation without overwriting your existing aliases.
 
 
 ## 🔧 Development & Customization
@@ -132,18 +148,12 @@ cd git-ai-usage-script
 
 ### 🎨 Customization Options:
 
-#### AI Tag Patterns:
-```bash
-# Edit the AI_TAG variable in git-ai-usage.sh
-AI_TAG='\[AI-GENERATED\]'  # Exact match
-AI_TAG='\[AI'              # Any AI prefix  
-AI_TAG='\(AI\)'            # Different brackets
-AI_TAG='Co-authored-by.*copilot'  # GitHub Copilot format
-```
-
 #### Custom Exclusion Patterns:
 ```bash
-# Add your team's specific patterns
-EXCLUDE_BRANCH_PATTERNS="^(origin/HEAD|origin/main|origin/master|main|master|HEAD|staging|demo)$|^.*->.*$"
+# Use --exclude flag to add to default exclusions
+ai --local --exclude="staging|demo|temp"
+
+# Default exclusions are automatically applied:
+# master, main, HEAD, origin/HEAD, origin/main, origin/master, and arrow notation
 ```
 
