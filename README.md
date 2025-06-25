@@ -24,6 +24,21 @@ cd git-ai-usage-script
 curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/install.sh | bash
 ```
 
+> **Note:** When using `curl | bash`, interactive prompts for alias conflicts will be skipped. If you have an existing `ai` alias, you'll need to manually add your preferred alias after installation:
+> ```bash
+> echo 'alias ai="git-ai-usage"' >> ~/.zshrc    # Replace existing 'ai' alias
+> echo 'alias gai="git-ai-usage"' >> ~/.zshrc   # Or create a different alias
+> ```
+
+#### Interactive Installation (recommended for alias conflicts):
+```bash
+# Download installer first, then run interactively
+curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/install.sh > install.sh
+chmod +x install.sh
+./install.sh
+rm install.sh
+```
+
 #### Quick Try (no installation):
 ```bash
 curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh | bash
