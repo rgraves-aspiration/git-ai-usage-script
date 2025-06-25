@@ -277,7 +277,7 @@ while [[ $# -gt 0 ]]; do
             echo "               Combinations: 1w2d (1 week 2 days), 2d6h (2 days 6 hours)"
             echo ""
             echo "EXAMPLES:"
-            echo "  $0                                    # Current branch only"
+            echo "  $0                                    # Current branch (commits unique to this branch)"
             echo "  $0 --include=\"feature\"                # All branches containing 'feature'"
             echo "  $0 --include=\"rg/CPDE.*frontend\"      # Regex pattern matching"
             echo "  $0 --local                            # All local branches"
@@ -292,6 +292,8 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 --update                           # Update to latest version from GitHub"
             echo ""
             echo "NOTES:"
+            echo "  • Current branch analysis shows commits unique to that branch (excluding default branch)"
+            echo "  • Default branch analysis includes all commits when analyzed directly"
             echo "  • Default exclusions: master, main, HEAD, and arrow notation (origin/HEAD -> ...)"
             echo "  • --exclude adds to defaults, doesn't replace them"
             echo "  • Relative times: w=weeks, d=days, h=hours, m=minutes"
@@ -377,15 +379,18 @@ calculate_branch_stats() {
 
     echo -e "  ${BLUE}→${NC} Analyzing branch: ${CYAN}$branch${NC}"
 
-    # For current branch analysis, we want all commits on this branch
-    # For multi-branch analysis, we compare against the default branch to avoid double-counting
+    # For current branch analysis, we want commits unique to this branch (not shared with default)
+    # For multi-branch analysis, we also compare against the default branch to avoid double-counting
     local comparison_base=""
-    if [ "$ANALYZE_CURRENT_BRANCH_ONLY" = true ]; then
-        # When analyzing just the current branch, include all commits
+    local default_branch=$(detect_default_branch)
+    
+    # Only include all commits if we're analyzing the default branch itself
+    if [ "$branch" = "$default_branch" ] || [ "$branch" = "origin/$default_branch" ]; then
+        # When analyzing the default branch itself, include all commits
         comparison_base=""
+        echo -e "    ${PURPLE}Note: Analyzing default branch - including all commits${NC}"
     else
-        # When analyzing multiple branches, exclude commits that are in the default branch
-        local default_branch=$(detect_default_branch)
+        # For any other branch, exclude commits that are in the default branch
         if [ "$ANALYZE_REMOTE_BRANCHES" = true ]; then
             comparison_base="^origin/$default_branch"
         else
@@ -395,6 +400,9 @@ calculate_branch_stats() {
         # Check if the comparison base exists, if not, don't use it
         if ! git show-ref --verify --quiet "refs/remotes/origin/$default_branch" && ! git show-ref --verify --quiet "refs/heads/$default_branch"; then
             comparison_base=""
+            echo -e "    ${YELLOW}Warning: Default branch not found - analyzing all commits${NC}"
+        else
+            echo -e "    ${PURPLE}Note: Analyzing commits unique to this branch (excluding $default_branch)${NC}"
         fi
     fi
 
