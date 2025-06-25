@@ -446,14 +446,6 @@ calculate_branch_stats() {
         # Try to detect the most likely parent branch
         local parent_branch=$(detect_parent_branch "$branch")
         
-        if [ -n "$PARENT_BRANCH" ]; then
-            echo -e "    ${PURPLE}Note: Using specified parent branch '$parent_branch' - analyzing commits unique to this branch${NC}"
-        elif [ "$parent_branch" = "$default_branch" ]; then
-            echo -e "    ${PURPLE}Note: Analyzing commits unique to this branch (excluding $default_branch)${NC}"
-        else
-            echo -e "    ${PURPLE}Note: Auto-detected parent branch '$parent_branch' - analyzing commits unique to this branch${NC}"
-        fi
-        
         # Set up comparison base
         if [ "$ANALYZE_REMOTE_BRANCHES" = true ]; then
             comparison_base="^origin/$parent_branch"
