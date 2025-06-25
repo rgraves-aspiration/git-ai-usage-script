@@ -223,6 +223,9 @@ while [[ $# -gt 0 ]]; do
             cp "$TEMP_SCRIPT" "$INSTALLED_SCRIPT"
             chmod +x "$INSTALLED_SCRIPT"
             
+            # Clear shell command cache to ensure updated script is used
+            hash -r 2>/dev/null || true
+            
             echo "✅ Update complete!"
             echo ""
             echo "🔍 To verify the update worked:"
