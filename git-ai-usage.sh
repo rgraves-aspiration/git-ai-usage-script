@@ -49,6 +49,12 @@ ANALYZE_REMOTE_BRANCHES=false
 ANALYZE_LOCAL_BRANCHES=false
 VERBOSE=false
 
+# Minimum expected script size for update verification (bytes)
+# Based on current script size (~25KB), 10KB ensures we have a valid script
+# while allowing for size variations. Protects against network errors returning
+# empty files, error pages, or truncated downloads.
+MIN_VALID_SCRIPT_SIZE_BYTES=10000
+
 # Regex patterns to EXCLUDE master and main branches, HEAD pointer and arrow notation
 EXCLUDE_BRANCH_PATTERNS="^(origin/HEAD|origin/main|origin/master|main|master|HEAD)$|^.*->.*$"
 ADDITIONAL_EXCLUDES=""  # For user-specified exclusions
@@ -113,6 +119,95 @@ parse_relative_time() {
     fi
 }
 
+# --- Function to download script from GitHub ---
+# Downloads the script from the specified URL to the given target file
+download_script() {
+    local url="$1"
+    local target="$2"
+    
+    if command -v curl >/dev/null 2>&1; then
+        curl -sSL "$url" -o "$target"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$url" -O "$target"
+    else
+        echo "❌ Error: Neither curl nor wget found. Please install one of them."
+        exit 1
+    fi
+}
+
+# --- Function to perform script update ---
+# Downloads and replaces the current script with the latest version from GitHub
+perform_update() {
+    echo "🔄 Updating Git AI Usage Analysis Script..."
+    
+    # Check if script is installed (look for it in common locations)
+    INSTALLED_SCRIPT=""
+    if [ -f "$HOME/.local/bin/git-ai-usage" ]; then
+        INSTALLED_SCRIPT="$HOME/.local/bin/git-ai-usage"
+    elif command -v git-ai-usage >/dev/null 2>&1; then
+        INSTALLED_SCRIPT=$(command -v git-ai-usage)
+    else
+        echo "❌ Error: git-ai-usage not found in PATH. Please install first using:"
+        echo "   curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/install.sh | bash"
+        exit 1
+    fi
+    
+    echo "📍 Found installed script at: $INSTALLED_SCRIPT"
+    
+    # Download the latest version
+    echo "⬇️  Downloading latest version..."
+    TEMP_SCRIPT=$(mktemp /tmp/git-ai-usage-update-XXXXXXXXXX)
+    trap 'rm -f "$TEMP_SCRIPT"' EXIT
+    
+    download_script "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" "$TEMP_SCRIPT"
+    
+    # Verify download
+    if [ ! -f "$TEMP_SCRIPT" ] || [ ! -s "$TEMP_SCRIPT" ]; then
+        echo "❌ Error: Failed to download the latest version."
+        exit 1
+    fi
+    
+    # Basic integrity check - ensure file size is reasonable
+    ACTUAL_SIZE=$(wc -c < "$TEMP_SCRIPT" 2>/dev/null || echo "0")
+    if [ "$ACTUAL_SIZE" -lt "$MIN_VALID_SCRIPT_SIZE_BYTES" ]; then
+        echo "❌ Error: Downloaded file appears to be too small ($ACTUAL_SIZE bytes, expected at least $MIN_VALID_SCRIPT_SIZE_BYTES bytes)"
+        echo "   This may indicate a network error or the file was not downloaded correctly."
+        exit 1
+    fi
+    
+    # Verify it looks like a shell script (flexible shebang check)
+    if ! head -1 "$TEMP_SCRIPT" | grep -q "^#!.*bash"; then
+        echo "❌ Error: Downloaded file doesn't appear to be a valid bash script"
+        exit 1
+    fi
+    
+    # Replace the installed version
+    echo "🔄 Updating installed script..."
+    
+    # Check for write permissions on the target location
+    if [ ! -w "$INSTALLED_SCRIPT" ] && [ ! -w "$(dirname "$INSTALLED_SCRIPT")" ]; then
+        echo "❌ Error: Insufficient permissions to update the installed script at '$INSTALLED_SCRIPT'."
+        echo "   Please rerun this script with 'sudo' or ensure you have write access to the target location."
+        exit 1
+    fi
+    
+    cp "$TEMP_SCRIPT" "$INSTALLED_SCRIPT"
+    chmod +x "$INSTALLED_SCRIPT"
+    
+    # Clear shell command cache to ensure updated script is used
+    hash -r 2>/dev/null || true
+    
+    echo "✅ Update complete!"
+    echo ""
+    echo "🔍 To verify the update worked:"
+    echo "   git-ai-usage --help"
+    echo ""
+    echo "💡 If you're running this from a local copy, remember to use the installed version:"
+    echo "   Use: git-ai-usage (or your alias like 'ai')"
+    echo "   Not: ./git-ai-usage.sh"
+    exit 0
+}
+
 # --- Parse command line arguments ---
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -153,6 +248,9 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        --update)
+            perform_update
+            ;;
         --help|-h)
             echo "Git AI Usage Analysis Script"
             echo "============================="
@@ -169,6 +267,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --from=\"date\"         Start date for analysis (default: full history)"
             echo "  --to=\"date\"           End date for analysis (default: no limit)"
             echo "  -v, --verbose         Show detailed inclusion/exclusion patterns"
+            echo "  --update              Update to the latest version from GitHub"
             echo "  -h, --help            Show this help message"
             echo ""
             echo "DATE FORMATS:"
@@ -190,6 +289,7 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 --remote --include=\"main\" -v       # Remote main branch with verbose output"
             echo "  $0 --pattern=\"\\[AI-GENERATED\\]\"       # Custom AI tag pattern"
             echo "  $0 --pattern=\"Co-authored-by.*copilot\" # GitHub Copilot format"
+            echo "  $0 --update                           # Update to latest version from GitHub"
             echo ""
             echo "NOTES:"
             echo "  • Default exclusions: master, main, HEAD, and arrow notation (origin/HEAD -> ...)"
