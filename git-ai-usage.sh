@@ -153,6 +153,58 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        --update)
+            echo "🔄 Updating Git AI Usage Analysis Script..."
+            
+            # Check if script is installed (look for it in common locations)
+            INSTALLED_SCRIPT=""
+            if [ -f "$HOME/.local/bin/git-ai-usage" ]; then
+                INSTALLED_SCRIPT="$HOME/.local/bin/git-ai-usage"
+            elif command -v git-ai-usage >/dev/null 2>&1; then
+                INSTALLED_SCRIPT=$(command -v git-ai-usage)
+            else
+                echo "❌ Error: git-ai-usage not found in PATH. Please install first using:"
+                echo "   curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/install.sh | bash"
+                exit 1
+            fi
+            
+            echo "📍 Found installed script at: $INSTALLED_SCRIPT"
+            
+            # Download the latest version
+            echo "⬇️  Downloading latest version..."
+            TEMP_SCRIPT="/tmp/git-ai-usage-update-$$"
+            
+            if command -v curl >/dev/null 2>&1; then
+                curl -sSL "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" -o "$TEMP_SCRIPT"
+            elif command -v wget >/dev/null 2>&1; then
+                wget -q "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" -O "$TEMP_SCRIPT"
+            else
+                echo "❌ Error: Neither curl nor wget found. Please install one of them."
+                exit 1
+            fi
+            
+            # Verify download
+            if [ ! -f "$TEMP_SCRIPT" ] || [ ! -s "$TEMP_SCRIPT" ]; then
+                echo "❌ Error: Failed to download the latest version."
+                exit 1
+            fi
+            
+            # Replace the installed version
+            echo "🔄 Updating installed script..."
+            cp "$TEMP_SCRIPT" "$INSTALLED_SCRIPT"
+            chmod +x "$INSTALLED_SCRIPT"
+            rm -f "$TEMP_SCRIPT"
+            
+            echo "✅ Update complete!"
+            echo ""
+            echo "🔍 To verify the update worked:"
+            echo "   git-ai-usage --help"
+            echo ""
+            echo "💡 If you're running this from a local copy, remember to use the installed version:"
+            echo "   Use: git-ai-usage (or your alias like 'ai')"
+            echo "   Not: ./git-ai-usage.sh"
+            exit 0
+            ;;
         --help|-h)
             echo "Git AI Usage Analysis Script"
             echo "============================="
@@ -169,6 +221,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --from=\"date\"         Start date for analysis (default: full history)"
             echo "  --to=\"date\"           End date for analysis (default: no limit)"
             echo "  -v, --verbose         Show detailed inclusion/exclusion patterns"
+            echo "  --update              Update to the latest version from GitHub"
             echo "  -h, --help            Show this help message"
             echo ""
             echo "DATE FORMATS:"
