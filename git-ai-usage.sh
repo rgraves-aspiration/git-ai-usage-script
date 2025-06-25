@@ -446,6 +446,13 @@ calculate_branch_stats() {
         # Try to detect the most likely parent branch
         local parent_branch=$(detect_parent_branch "$branch")
         
+        # Show helpful note when using explicit parent or non-default parent detection
+        if [ -n "$PARENT_BRANCH" ]; then
+            echo -e "    ${PURPLE}Using specified parent branch '$parent_branch'${NC}"
+        elif [ "$parent_branch" != "$default_branch" ]; then
+            echo -e "    ${PURPLE}Auto-detected parent branch '$parent_branch'${NC}"
+        fi
+        
         # Set up comparison base
         if [ "$ANALYZE_REMOTE_BRANCHES" = true ]; then
             comparison_base="^origin/$parent_branch"
