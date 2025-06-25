@@ -53,7 +53,11 @@ if [[ -n "$SHELL_RC" ]]; then
     if [[ "$PATH_ADDED" == true ]]; then
         echo ""
         echo "🔧 Adding $INSTALL_DIR to PATH in $(basename "$SHELL_RC")..."
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
+        if ! grep -Fxq 'export PATH="$HOME/.local/bin:$PATH"' "$SHELL_RC"; then
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
+        else
+            echo "ℹ️  PATH entry already exists in $(basename "$SHELL_RC"). Skipping."
+        fi
     fi
     
     # Check if 'ai' alias already exists

@@ -22,6 +22,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed  
 - Default branch comparison logic now works with both 'main' and 'master'
 - Improved error handling for repositories without default branch setup
+- Installer now prevents duplicate PATH entries on subsequent installations
 
 ## [1.0.0] - 2025-06-25
 
