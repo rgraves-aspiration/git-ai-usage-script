@@ -156,6 +156,9 @@ while [[ $# -gt 0 ]]; do
         --update)
             echo "🔄 Updating Git AI Usage Analysis Script..."
             
+            # Minimum expected script size in bytes (~10KB)
+            MIN_VALID_SCRIPT_SIZE_BYTES=10000
+            
             # Check if script is installed (look for it in common locations)
             INSTALLED_SCRIPT=""
             if [ -f "$HOME/.local/bin/git-ai-usage" ]; then
@@ -172,7 +175,7 @@ while [[ $# -gt 0 ]]; do
             
             # Download the latest version
             echo "⬇️  Downloading latest version..."
-            TEMP_SCRIPT="/tmp/git-ai-usage-update-$$"
+            TEMP_SCRIPT=$(mktemp /tmp/git-ai-usage-update-XXXXXXXXXX)
             
             if command -v curl >/dev/null 2>&1; then
                 curl -sSL "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" -o "$TEMP_SCRIPT"
@@ -186,21 +189,21 @@ while [[ $# -gt 0 ]]; do
             # Verify download
             if [ ! -f "$TEMP_SCRIPT" ] || [ ! -s "$TEMP_SCRIPT" ]; then
                 echo "❌ Error: Failed to download the latest version."
+                rm -f "$TEMP_SCRIPT"
                 exit 1
             fi
             
             # Basic integrity check - ensure file size is reasonable
-            EXPECTED_MIN_SIZE=10000  # ~10KB minimum for a valid script
             ACTUAL_SIZE=$(wc -c < "$TEMP_SCRIPT" 2>/dev/null || echo "0")
-            if [ "$ACTUAL_SIZE" -lt "$EXPECTED_MIN_SIZE" ]; then
-                echo "❌ Error: Downloaded file appears to be too small ($ACTUAL_SIZE bytes, expected at least $EXPECTED_MIN_SIZE bytes)"
+            if [ "$ACTUAL_SIZE" -lt "$MIN_VALID_SCRIPT_SIZE_BYTES" ]; then
+                echo "❌ Error: Downloaded file appears to be too small ($ACTUAL_SIZE bytes, expected at least $MIN_VALID_SCRIPT_SIZE_BYTES bytes)"
                 echo "   This may indicate a network error or the file was not downloaded correctly."
                 rm -f "$TEMP_SCRIPT"
                 exit 1
             fi
             
-            # Verify it looks like a shell script
-            if ! head -1 "$TEMP_SCRIPT" | grep -q "#!/bin/bash"; then
+            # Verify it looks like a shell script (flexible shebang check)
+            if ! head -1 "$TEMP_SCRIPT" | grep -q "^#!.*bash"; then
                 echo "❌ Error: Downloaded file doesn't appear to be a valid bash script"
                 rm -f "$TEMP_SCRIPT"
                 exit 1
