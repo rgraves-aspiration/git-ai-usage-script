@@ -55,6 +55,10 @@ VERBOSE=false
 # empty files, error pages, or truncated downloads.
 MIN_VALID_SCRIPT_SIZE_BYTES=10000
 
+# Default branch for downloading updates from GitHub
+# Can be changed to handle branch renames or version switches
+DEFAULT_BRANCH="main"
+
 # Regex patterns to EXCLUDE master and main branches, HEAD pointer and arrow notation
 EXCLUDE_BRANCH_PATTERNS="^(origin/HEAD|origin/main|origin/master|main|master|HEAD)$|^.*->.*$"
 ADDITIONAL_EXCLUDES=""  # For user-specified exclusions
@@ -132,7 +136,7 @@ perform_update() {
         INSTALLED_SCRIPT=$(command -v git-ai-usage)
     else
         echo "❌ Error: git-ai-usage not found in PATH. Please install first using:"
-        echo "   curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/install.sh | bash"
+        echo "   curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/$DEFAULT_BRANCH/install.sh | bash"
         exit 1
     fi
     
@@ -144,9 +148,9 @@ perform_update() {
     trap 'rm -f "$TEMP_SCRIPT"' EXIT
     
     if command -v curl >/dev/null 2>&1; then
-        curl -sSL "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" -o "$TEMP_SCRIPT"
+        curl -sSL "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/$DEFAULT_BRANCH/git-ai-usage.sh" -o "$TEMP_SCRIPT"
     elif command -v wget >/dev/null 2>&1; then
-        wget -q "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" -O "$TEMP_SCRIPT"
+        wget -q "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/$DEFAULT_BRANCH/git-ai-usage.sh" -O "$TEMP_SCRIPT"
     else
         echo "❌ Error: Neither curl nor wget found. Please install one of them."
         exit 1
