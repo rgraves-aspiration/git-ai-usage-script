@@ -47,6 +47,7 @@ After installation, use the `ai` alias from any git repository:
 # Basic usage
 ai                          # Analyze current branch
 ai --help                   # Show all options
+ai --update                 # Update to latest version
 
 # Branch analysis
 ai --local                  # All local branches
@@ -64,6 +65,9 @@ ai --local --exclude="staging|temp" -v  # Exclude patterns, verbose output
 ai --remote --include="main" --from="1w" # Remote main branch, past week
 ai --pattern="\[AI-GENERATED\]" --local  # Custom AI tag pattern
 ai --pattern="Co-authored-by.*copilot"   # GitHub Copilot format
+
+# Updates
+ai --update                              # Update to latest version from GitHub
 ```
 
 ## 📊 Sample Output
