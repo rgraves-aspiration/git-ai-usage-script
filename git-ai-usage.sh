@@ -125,6 +125,10 @@ while [[ $# -gt 0 ]]; do
             ADDITIONAL_EXCLUDES="${1#*=}"
             shift
             ;;
+        --pattern=*)
+            AI_TAG="${1#*=}"
+            shift
+            ;;
         --from=*)
             START_DATE=$(parse_relative_time "${1#*=}")
             shift
@@ -162,26 +166,81 @@ while [[ $# -gt 0 ]]; do
             
             echo "✅ Installed to $HOME/.local/bin/git-ai-usage"
             
+            # Determine shell config file
+            SHELL_RC=""
+            if [[ "$SHELL" == *"zsh"* ]]; then
+                SHELL_RC="$HOME/.zshrc"
+            elif [[ "$SHELL" == *"bash"* ]]; then
+                SHELL_RC="$HOME/.bashrc"
+            fi
+            
             # Add to PATH if needed
             if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
                 echo "🔧 Adding $HOME/.local/bin to PATH..."
-                if [[ "$SHELL" == *"zsh"* ]]; then
-                    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-                    echo 'alias ai="git-ai-usage"' >> ~/.zshrc
-                    echo "✅ Added to ~/.zshrc (restart terminal or run 'source ~/.zshrc')"
-                elif [[ "$SHELL" == *"bash"* ]]; then
-                    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-                    echo 'alias ai="git-ai-usage"' >> ~/.bashrc
-                    echo "✅ Added to ~/.bashrc (restart terminal or run 'source ~/.bashrc')"
+                if [[ -n "$SHELL_RC" ]]; then
+                    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
+                    echo "✅ Added to PATH in $(basename "$SHELL_RC")"
                 fi
+            fi
+            
+            # Check if 'ai' alias already exists
+            ALIAS_EXISTS=false
+            EXISTING_ALIAS=""
+            if [[ -n "$SHELL_RC" && -f "$SHELL_RC" ]]; then
+                if grep -q "alias ai=" "$SHELL_RC" 2>/dev/null; then
+                    ALIAS_EXISTS=true
+                    EXISTING_ALIAS=$(grep "alias ai=" "$SHELL_RC" | head -1)
+                fi
+            fi
+            
+            # Handle alias creation
+            if [[ "$ALIAS_EXISTS" == true ]]; then
+                echo ""
+                echo "⚠️  Found existing 'ai' alias:"
+                echo "   $EXISTING_ALIAS"
+                echo ""
+                echo "Choose an option:"
+                echo "  1) Replace existing alias with git-ai-usage"
+                echo "  2) Create a different alias (e.g., 'gai')"
+                echo "  3) Skip alias creation"
+                echo ""
+                read -p "Enter choice (1-3): " CHOICE
+                
+                case $CHOICE in
+                    1)
+                        # Replace existing alias
+                        if command -v sed >/dev/null 2>&1; then
+                            sed -i.bak '/alias ai=/d' "$SHELL_RC"
+                            echo 'alias ai="git-ai-usage"' >> "$SHELL_RC"
+                            echo "✅ Replaced existing 'ai' alias"
+                        else
+                            echo "❌ Could not automatically replace alias. Please manually update:"
+                            echo "   Remove: $EXISTING_ALIAS"
+                            echo "   Add: alias ai=\"git-ai-usage\""
+                        fi
+                        ;;
+                    2)
+                        read -p "Enter new alias name (e.g., 'gai'): " NEW_ALIAS
+                        if [[ -n "$NEW_ALIAS" && "$NEW_ALIAS" =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
+                            echo "alias $NEW_ALIAS=\"git-ai-usage\"" >> "$SHELL_RC"
+                            echo "✅ Created '$NEW_ALIAS' alias"
+                        else
+                            echo "❌ Invalid alias name. Please manually add: alias YOUR_ALIAS=\"git-ai-usage\""
+                        fi
+                        ;;
+                    3)
+                        echo "⏭️  Skipped alias creation"
+                        ;;
+                    *)
+                        echo "❌ Invalid choice. Skipped alias creation"
+                        ;;
+                esac
             else
-                # Just add alias if PATH already includes the directory
-                if [[ "$SHELL" == *"zsh"* ]]; then
-                    echo 'alias ai="git-ai-usage"' >> ~/.zshrc
-                elif [[ "$SHELL" == *"bash"* ]]; then
-                    echo 'alias ai="git-ai-usage"' >> ~/.bashrc
+                # No existing alias, create 'ai' alias
+                if [[ -n "$SHELL_RC" ]]; then
+                    echo 'alias ai="git-ai-usage"' >> "$SHELL_RC"
+                    echo "✅ Created 'ai' alias in $(basename "$SHELL_RC")"
                 fi
-                echo "✅ Added 'ai' alias"
             fi
             
             echo ""
@@ -200,6 +259,7 @@ while [[ $# -gt 0 ]]; do
             echo "OPTIONS:"
             echo "  --include=\"pattern\"   Analyze branches matching pattern (regex supported)"
             echo "  --exclude=\"pattern\"   Add pattern to exclusion list (appends to defaults)"
+            echo "  --pattern=\"regex\"     Custom AI tag pattern (default: '\\[AI')"
             echo "  --local               Analyze all local branches (excludes current branch default)"
             echo "  --remote              Analyze all remote branches"
             echo "  --from=\"date\"         Start date for analysis (default: full history)"
@@ -225,6 +285,8 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 --from=\"3d6h\"                      # Past 3 days 6 hours (exact time)"
             echo "  $0 --from=\"2024-01-01\" --to=\"1w\"     # From Jan 1st to 1 week ago"
             echo "  $0 --remote --include=\"main\" -v       # Remote main branch with verbose output"
+            echo "  $0 --pattern=\"\\[AI-GENERATED\\]\"       # Custom AI tag pattern"
+            echo "  $0 --pattern=\"Co-authored-by.*copilot\" # GitHub Copilot format"
             echo ""
             echo "NOTES:"
             echo "  • Default exclusions: master, main, HEAD, and arrow notation (origin/HEAD -> ...)"
