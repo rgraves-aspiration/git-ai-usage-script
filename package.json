@@ -1,0 +1,42 @@
+{
+  "name": "git-ai-usage-script",
+  "version": "1.0.0",
+  "description": "Analyze AI-assisted code contributions in git repositories",
+  "main": "git-ai-usage.sh",
+  "bin": {
+    "git-ai-usage": "./git-ai-usage.sh",
+    "ai": "./git-ai-usage.sh"
+  },
+  "scripts": {
+    "test": "bash git-ai-usage.sh --help",
+    "postinstall": "bash git-ai-usage.sh --install"
+  },
+  "repository": {
+    "type": "git", 
+    "url": "https://github.com/rgraves-aspiration/git-ai-usage-script.git"
+  },
+  "keywords": [
+    "git",
+    "ai",
+    "analysis",
+    "productivity",
+    "bash",
+    "cli",
+    "developer-tools"
+  ],
+  "author": "Ryan Graves (rgraves-aspiration)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "preferGlobal": true,
+  "files": [
+    "git-ai-usage.sh",
+    "install.sh",
+    "README.md"
+  ]
+}
