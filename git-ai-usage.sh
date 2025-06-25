@@ -189,6 +189,23 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             
+            # Basic integrity check - ensure file size is reasonable
+            EXPECTED_MIN_SIZE=10000  # ~10KB minimum for a valid script
+            ACTUAL_SIZE=$(wc -c < "$TEMP_SCRIPT" 2>/dev/null || echo "0")
+            if [ "$ACTUAL_SIZE" -lt "$EXPECTED_MIN_SIZE" ]; then
+                echo "❌ Error: Downloaded file appears to be too small ($ACTUAL_SIZE bytes, expected at least $EXPECTED_MIN_SIZE bytes)"
+                echo "   This may indicate a network error or the file was not downloaded correctly."
+                rm -f "$TEMP_SCRIPT"
+                exit 1
+            fi
+            
+            # Verify it looks like a shell script
+            if ! head -1 "$TEMP_SCRIPT" | grep -q "#!/bin/bash"; then
+                echo "❌ Error: Downloaded file doesn't appear to be a valid bash script"
+                rm -f "$TEMP_SCRIPT"
+                exit 1
+            fi
+            
             # Replace the installed version
             echo "🔄 Updating installed script..."
             cp "$TEMP_SCRIPT" "$INSTALLED_SCRIPT"

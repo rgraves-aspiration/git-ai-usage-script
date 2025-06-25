@@ -7,9 +7,11 @@ All notable changes to this project will be documented in this file.
 ### Added
 - `--update` command to update script to latest version from GitHub
 - Automatic detection of installed script location for updates
+- Download verification with file size and script header validation
 
 ### Changed
 - Updated package.json version to 1.2.0 for proper release tagging
+- Enhanced update process with integrity checks
 
 ## [1.1.0] - 2025-06-25
 
