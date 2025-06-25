@@ -55,10 +55,6 @@ VERBOSE=false
 # empty files, error pages, or truncated downloads.
 MIN_VALID_SCRIPT_SIZE_BYTES=10000
 
-# Default branch for downloading updates from GitHub
-# Can be changed to handle branch renames or version switches
-DEFAULT_BRANCH="main"
-
 # Regex patterns to EXCLUDE master and main branches, HEAD pointer and arrow notation
 EXCLUDE_BRANCH_PATTERNS="^(origin/HEAD|origin/main|origin/master|main|master|HEAD)$|^.*->.*$"
 ADDITIONAL_EXCLUDES=""  # For user-specified exclusions
@@ -123,6 +119,22 @@ parse_relative_time() {
     fi
 }
 
+# --- Function to download script from GitHub ---
+# Downloads the script from the specified URL to the given target file
+download_script() {
+    local url="$1"
+    local target="$2"
+    
+    if command -v curl >/dev/null 2>&1; then
+        curl -sSL "$url" -o "$target"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$url" -O "$target"
+    else
+        echo "❌ Error: Neither curl nor wget found. Please install one of them."
+        exit 1
+    fi
+}
+
 # --- Function to perform script update ---
 # Downloads and replaces the current script with the latest version from GitHub
 perform_update() {
@@ -136,7 +148,7 @@ perform_update() {
         INSTALLED_SCRIPT=$(command -v git-ai-usage)
     else
         echo "❌ Error: git-ai-usage not found in PATH. Please install first using:"
-        echo "   curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/$DEFAULT_BRANCH/install.sh | bash"
+        echo "   curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/install.sh | bash"
         exit 1
     fi
     
@@ -147,14 +159,7 @@ perform_update() {
     TEMP_SCRIPT=$(mktemp /tmp/git-ai-usage-update-XXXXXXXXXX)
     trap 'rm -f "$TEMP_SCRIPT"' EXIT
     
-    if command -v curl >/dev/null 2>&1; then
-        curl -sSL "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/$DEFAULT_BRANCH/git-ai-usage.sh" -o "$TEMP_SCRIPT"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -q "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/$DEFAULT_BRANCH/git-ai-usage.sh" -O "$TEMP_SCRIPT"
-    else
-        echo "❌ Error: Neither curl nor wget found. Please install one of them."
-        exit 1
-    fi
+    download_script "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" "$TEMP_SCRIPT"
     
     # Verify download
     if [ ! -f "$TEMP_SCRIPT" ] || [ ! -s "$TEMP_SCRIPT" ]; then
