@@ -243,6 +243,7 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 --remote --include=\"main\" -v       # Remote main branch with verbose output"
             echo "  $0 --pattern=\"\\[AI-GENERATED\\]\"       # Custom AI tag pattern"
             echo "  $0 --pattern=\"Co-authored-by.*copilot\" # GitHub Copilot format"
+            echo "  $0 --update                           # Update to latest version from GitHub"
             echo ""
             echo "NOTES:"
             echo "  • Default exclusions: master, main, HEAD, and arrow notation (origin/HEAD -> ...)"
