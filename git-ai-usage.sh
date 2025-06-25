@@ -119,6 +119,86 @@ parse_relative_time() {
     fi
 }
 
+# --- Function to perform script update ---
+# Downloads and replaces the current script with the latest version from GitHub
+perform_update() {
+    echo "🔄 Updating Git AI Usage Analysis Script..."
+    
+    # Check if script is installed (look for it in common locations)
+    INSTALLED_SCRIPT=""
+    if [ -f "$HOME/.local/bin/git-ai-usage" ]; then
+        INSTALLED_SCRIPT="$HOME/.local/bin/git-ai-usage"
+    elif command -v git-ai-usage >/dev/null 2>&1; then
+        INSTALLED_SCRIPT=$(command -v git-ai-usage)
+    else
+        echo "❌ Error: git-ai-usage not found in PATH. Please install first using:"
+        echo "   curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/install.sh | bash"
+        exit 1
+    fi
+    
+    echo "📍 Found installed script at: $INSTALLED_SCRIPT"
+    
+    # Download the latest version
+    echo "⬇️  Downloading latest version..."
+    TEMP_SCRIPT=$(mktemp /tmp/git-ai-usage-update-XXXXXXXXXX)
+    trap 'rm -f "$TEMP_SCRIPT"' EXIT
+    
+    if command -v curl >/dev/null 2>&1; then
+        curl -sSL "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" -o "$TEMP_SCRIPT"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" -O "$TEMP_SCRIPT"
+    else
+        echo "❌ Error: Neither curl nor wget found. Please install one of them."
+        exit 1
+    fi
+    
+    # Verify download
+    if [ ! -f "$TEMP_SCRIPT" ] || [ ! -s "$TEMP_SCRIPT" ]; then
+        echo "❌ Error: Failed to download the latest version."
+        exit 1
+    fi
+    
+    # Basic integrity check - ensure file size is reasonable
+    ACTUAL_SIZE=$(wc -c < "$TEMP_SCRIPT" 2>/dev/null || echo "0")
+    if [ "$ACTUAL_SIZE" -lt "$MIN_VALID_SCRIPT_SIZE_BYTES" ]; then
+        echo "❌ Error: Downloaded file appears to be too small ($ACTUAL_SIZE bytes, expected at least $MIN_VALID_SCRIPT_SIZE_BYTES bytes)"
+        echo "   This may indicate a network error or the file was not downloaded correctly."
+        exit 1
+    fi
+    
+    # Verify it looks like a shell script (flexible shebang check)
+    if ! head -1 "$TEMP_SCRIPT" | grep -q "^#!.*bash"; then
+        echo "❌ Error: Downloaded file doesn't appear to be a valid bash script"
+        exit 1
+    fi
+    
+    # Replace the installed version
+    echo "🔄 Updating installed script..."
+    
+    # Check for write permissions on the target location
+    if [ ! -w "$INSTALLED_SCRIPT" ] && [ ! -w "$(dirname "$INSTALLED_SCRIPT")" ]; then
+        echo "❌ Error: Insufficient permissions to update the installed script at '$INSTALLED_SCRIPT'."
+        echo "   Please rerun this script with 'sudo' or ensure you have write access to the target location."
+        exit 1
+    fi
+    
+    cp "$TEMP_SCRIPT" "$INSTALLED_SCRIPT"
+    chmod +x "$INSTALLED_SCRIPT"
+    
+    # Clear shell command cache to ensure updated script is used
+    hash -r 2>/dev/null || true
+    
+    echo "✅ Update complete!"
+    echo ""
+    echo "🔍 To verify the update worked:"
+    echo "   git-ai-usage --help"
+    echo ""
+    echo "💡 If you're running this from a local copy, remember to use the installed version:"
+    echo "   Use: git-ai-usage (or your alias like 'ai')"
+    echo "   Not: ./git-ai-usage.sh"
+    exit 0
+}
+
 # --- Parse command line arguments ---
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -160,81 +240,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --update)
-            echo "🔄 Updating Git AI Usage Analysis Script..."
-            
-            # Check if script is installed (look for it in common locations)
-            INSTALLED_SCRIPT=""
-            if [ -f "$HOME/.local/bin/git-ai-usage" ]; then
-                INSTALLED_SCRIPT="$HOME/.local/bin/git-ai-usage"
-            elif command -v git-ai-usage >/dev/null 2>&1; then
-                INSTALLED_SCRIPT=$(command -v git-ai-usage)
-            else
-                echo "❌ Error: git-ai-usage not found in PATH. Please install first using:"
-                echo "   curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/install.sh | bash"
-                exit 1
-            fi
-            
-            echo "📍 Found installed script at: $INSTALLED_SCRIPT"
-            
-            # Download the latest version
-            echo "⬇️  Downloading latest version..."
-            TEMP_SCRIPT=$(mktemp /tmp/git-ai-usage-update-XXXXXXXXXX)
-            trap 'rm -f "$TEMP_SCRIPT"' EXIT
-            
-            if command -v curl >/dev/null 2>&1; then
-                curl -sSL "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" -o "$TEMP_SCRIPT"
-            elif command -v wget >/dev/null 2>&1; then
-                wget -q "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" -O "$TEMP_SCRIPT"
-            else
-                echo "❌ Error: Neither curl nor wget found. Please install one of them."
-                exit 1
-            fi
-            
-            # Verify download
-            if [ ! -f "$TEMP_SCRIPT" ] || [ ! -s "$TEMP_SCRIPT" ]; then
-                echo "❌ Error: Failed to download the latest version."
-                exit 1
-            fi
-            
-            # Basic integrity check - ensure file size is reasonable
-            ACTUAL_SIZE=$(wc -c < "$TEMP_SCRIPT" 2>/dev/null || echo "0")
-            if [ "$ACTUAL_SIZE" -lt "$MIN_VALID_SCRIPT_SIZE_BYTES" ]; then
-                echo "❌ Error: Downloaded file appears to be too small ($ACTUAL_SIZE bytes, expected at least $MIN_VALID_SCRIPT_SIZE_BYTES bytes)"
-                echo "   This may indicate a network error or the file was not downloaded correctly."
-                exit 1
-            fi
-            
-            # Verify it looks like a shell script (flexible shebang check)
-            if ! head -1 "$TEMP_SCRIPT" | grep -q "^#!.*bash"; then
-                echo "❌ Error: Downloaded file doesn't appear to be a valid bash script"
-                exit 1
-            fi
-            
-            # Replace the installed version
-            echo "🔄 Updating installed script..."
-            
-            # Check for write permissions on the target location
-            if [ ! -w "$INSTALLED_SCRIPT" ] && [ ! -w "$(dirname "$INSTALLED_SCRIPT")" ]; then
-                echo "❌ Error: Insufficient permissions to update the installed script at '$INSTALLED_SCRIPT'."
-                echo "   Please rerun this script with 'sudo' or ensure you have write access to the target location."
-                exit 1
-            fi
-            
-            cp "$TEMP_SCRIPT" "$INSTALLED_SCRIPT"
-            chmod +x "$INSTALLED_SCRIPT"
-            
-            # Clear shell command cache to ensure updated script is used
-            hash -r 2>/dev/null || true
-            
-            echo "✅ Update complete!"
-            echo ""
-            echo "🔍 To verify the update worked:"
-            echo "   git-ai-usage --help"
-            echo ""
-            echo "💡 If you're running this from a local copy, remember to use the installed version:"
-            echo "   Use: git-ai-usage (or your alias like 'ai')"
-            echo "   Not: ./git-ai-usage.sh"
-            exit 0
+            perform_update
             ;;
         --help|-h)
             echo "Git AI Usage Analysis Script"
