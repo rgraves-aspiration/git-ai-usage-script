@@ -49,6 +49,12 @@ ANALYZE_REMOTE_BRANCHES=false
 ANALYZE_LOCAL_BRANCHES=false
 VERBOSE=false
 
+# Minimum expected script size for update verification (bytes)
+# Based on current script size (~25KB), 10KB ensures we have a valid script
+# while allowing for size variations. Protects against network errors returning
+# empty files, error pages, or truncated downloads.
+MIN_VALID_SCRIPT_SIZE_BYTES=10000
+
 # Regex patterns to EXCLUDE master and main branches, HEAD pointer and arrow notation
 EXCLUDE_BRANCH_PATTERNS="^(origin/HEAD|origin/main|origin/master|main|master|HEAD)$|^.*->.*$"
 ADDITIONAL_EXCLUDES=""  # For user-specified exclusions
@@ -155,9 +161,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --update)
             echo "🔄 Updating Git AI Usage Analysis Script..."
-            
-            # Minimum expected script size in bytes (~10KB)
-            MIN_VALID_SCRIPT_SIZE_BYTES=10000
             
             # Check if script is installed (look for it in common locations)
             INSTALLED_SCRIPT=""
