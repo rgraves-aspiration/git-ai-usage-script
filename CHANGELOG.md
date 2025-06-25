@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2025-06-25
+
+### Fixed
+- Installer now properly handles non-interactive mode (e.g., when piped from curl)
+- Added clear messaging when interactive prompts are skipped due to piped installation
+- Improved README documentation with alternative installation methods for interactive prompts
+
 ## [1.2.0] - 2025-06-25
 
 ### Added

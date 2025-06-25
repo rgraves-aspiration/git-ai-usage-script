@@ -75,12 +75,25 @@ if [[ -n "$SHELL_RC" ]]; then
         echo "⚠️  Found existing 'ai' alias:"
         echo "   $EXISTING_ALIAS"
         echo ""
-        echo "Choose an option:"
-        echo "  1) Replace existing alias with git-ai-usage"
-        echo "  2) Create a different alias (e.g., 'gai')"
-        echo "  3) Skip alias creation"
-        echo ""
-        read -p "Enter choice (1-3): " CHOICE
+        
+        # Check if we're in an interactive terminal
+        if [[ -t 0 ]]; then
+            echo "Choose an option:"
+            echo "  1) Replace existing alias with git-ai-usage"
+            echo "  2) Create a different alias (e.g., 'gai')"
+            echo "  3) Skip alias creation"
+            echo ""
+            read -p "Enter choice (1-3): " CHOICE
+        else
+            echo "📝 Non-interactive installation detected (piped from curl)."
+            echo "   Skipping alias creation to avoid conflicts."
+            echo ""
+            echo "💡 To create an alias after installation, run one of:"
+            echo "   echo 'alias ai=\"git-ai-usage\"' >> ~/.zshrc    # Replace existing 'ai' alias"
+            echo "   echo 'alias gai=\"git-ai-usage\"' >> ~/.zshrc   # Create 'gai' alias instead"
+            echo ""
+            CHOICE="3"
+        fi
         
         case $CHOICE in
             1)
