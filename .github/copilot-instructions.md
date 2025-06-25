@@ -7,7 +7,7 @@ These instructions guide AI assistants (like GitHub Copilot, Claude, etc.) when 
 ## 🏷️ Commit Message Standards
 
 ### Required AI Tag Format
-All commits made with AI assistance MUST include an AI tag at the END of the commit message in the format:
+All commits made with AI assistance MUST include an AI tag at the END of the ONE-LINE commit message in the format:
 ```
 <commit message> [AI <Tool> <Model>]
 ```
@@ -17,6 +17,16 @@ All commits made with AI assistance MUST include an AI tag at the END of the com
 - `Fix alias detection in installer script [AI GitHub Copilot]`
 - `Update README with new configuration options [AI Claude]`
 - `Implement relative time parsing function [AI ChatGPT GPT-4]`
+
+**For multi-line commits:**
+```
+Remove --install flag from main script [AI CopilotIDE Sonnet]
+
+The --install functionality is redundant with the standalone installer.
+Keeping only install.sh simplifies maintenance and follows Unix conventions.
+```
+
+**IMPORTANT**: The AI tag goes at the end of the FIRST LINE (one-line summary), NOT in the detailed description.
 
 ### Tag Components
 - **Tool**: The AI tool used (CopilotIDE, GitHub, Claude, ChatGPT, etc.)

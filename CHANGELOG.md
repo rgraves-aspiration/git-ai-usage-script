@@ -21,14 +21,14 @@ All notable changes to this project will be documented in this file.
 - `--local` and `--remote` flags for branch type selection
 - `--from` and `--to` flags for date range specification
 - `--verbose` flag for detailed analysis information
-- `--install` flag for easy system installation
+- `--pattern` flag for custom AI tag patterns
 - Smart relative time parsing (days only = start of day, with hours = exact time)
 - Comprehensive help documentation
 
 ### Installation Options
-- One-liner curl installation
-- Git clone + script install  
-- Direct script download with --install flag
+- One-liner curl installation with standalone installer
+- Git clone + standalone installer
+- Direct script download
 - Simplified NPM package for Node.js teams
 
 ### Analysis Features

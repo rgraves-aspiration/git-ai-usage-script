@@ -65,6 +65,7 @@ if [[ -n "$SHELL_RC" ]]; then
     fi
     
     # Handle alias creation
+    CREATED_ALIAS=""
     if [[ "$ALIAS_EXISTS" == true ]]; then
         echo ""
         echo "⚠️  Found existing 'ai' alias:"
@@ -84,10 +85,12 @@ if [[ -n "$SHELL_RC" ]]; then
                     sed -i.bak '/alias ai=/d' "$SHELL_RC"
                     echo 'alias ai="git-ai-usage"' >> "$SHELL_RC"
                     echo "✅ Replaced existing 'ai' alias in $(basename "$SHELL_RC")"
+                    CREATED_ALIAS="ai"
                 else
                     echo "❌ Could not automatically replace alias. Please manually update:"
                     echo "   Remove: $EXISTING_ALIAS"
                     echo "   Add: alias ai=\"git-ai-usage\""
+                    CREATED_ALIAS=""
                 fi
                 ;;
             2)
@@ -95,15 +98,19 @@ if [[ -n "$SHELL_RC" ]]; then
                 if [[ -n "$NEW_ALIAS" && "$NEW_ALIAS" =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
                     echo "alias $NEW_ALIAS=\"git-ai-usage\"" >> "$SHELL_RC"
                     echo "✅ Created '$NEW_ALIAS' alias in $(basename "$SHELL_RC")"
+                    CREATED_ALIAS="$NEW_ALIAS"
                 else
                     echo "❌ Invalid alias name. Please manually add: alias YOUR_ALIAS=\"git-ai-usage\""
+                    CREATED_ALIAS=""
                 fi
                 ;;
             3)
                 echo "⏭️  Skipped alias creation"
+                CREATED_ALIAS=""
                 ;;
             *)
                 echo "❌ Invalid choice. Skipped alias creation"
+                CREATED_ALIAS=""
                 ;;
         esac
     else
@@ -112,13 +119,16 @@ if [[ -n "$SHELL_RC" ]]; then
         echo "🔧 Adding 'ai' alias to $(basename "$SHELL_RC")..."
         echo 'alias ai="git-ai-usage"' >> "$SHELL_RC"
         echo "✅ Added 'ai' alias to $(basename "$SHELL_RC")"
+        CREATED_ALIAS="ai"
     fi
     
     echo ""
-    echo "🔄 To activate immediately, run:"
-    echo "   source $SHELL_RC"
-    echo ""
-    echo "Or restart your terminal."
+    if [[ -n "$CREATED_ALIAS" ]]; then
+        echo "🔄 To activate the '$CREATED_ALIAS' alias immediately, run:"
+        echo "   source $SHELL_RC"
+        echo ""
+        echo "Or restart your terminal."
+    fi
 else
     echo "⚠️  Could not detect shell type. You may need to manually add:"
     echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
@@ -129,11 +139,22 @@ fi
 echo ""
 echo "🎉 Installation complete!"
 echo ""
-echo "📖 Usage:"
-echo "   cd /path/to/git/repository"
-echo "   ai                    # Analyze current branch"
-echo "   ai --help             # Show all options"
-echo "   ai --local --from=2w  # Analyze local branches from past 2 weeks"
+if [[ -n "$CREATED_ALIAS" ]]; then
+    echo "📖 Usage:"
+    echo "   cd /path/to/git/repository"
+    echo "   $CREATED_ALIAS                    # Analyze current branch"
+    echo "   $CREATED_ALIAS --help             # Show all options"
+    echo "   $CREATED_ALIAS --local --from=2w  # Analyze local branches from past 2 weeks"
+else
+    echo "📖 Usage:"
+    echo "   cd /path/to/git/repository"
+    echo "   git-ai-usage                    # Analyze current branch"
+    echo "   git-ai-usage --help             # Show all options"
+    echo "   git-ai-usage --local --from=2w  # Analyze local branches from past 2 weeks"
+    echo ""
+    echo "💡 You can create an alias manually:"
+    echo "   alias YOUR_ALIAS=\"git-ai-usage\""
+fi
 echo ""
 echo "🔗 For more information, visit:"
 echo "   https://github.com/rgraves-aspiration/git-ai-usage-script"

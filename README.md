@@ -15,15 +15,13 @@ curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-scri
 ```bash
 git clone https://github.com/rgraves-aspiration/git-ai-usage-script.git
 cd git-ai-usage-script
-./git-ai-usage.sh --install
+./install.sh
 ```
 
 #### Direct Script Download:
 ```bash
-# Download and install
-curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh -o git-ai-usage.sh
-chmod +x git-ai-usage.sh
-./git-ai-usage.sh --install
+# Download and install with installer script
+curl -sSL https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/install.sh | bash
 ```
 
 #### Quick Try (no installation):
@@ -143,7 +141,7 @@ cd git-ai-usage-script
 ./git-ai-usage.sh --help
 
 # Install locally for testing
-./git-ai-usage.sh --install
+./install.sh
 ```
 
 ### 🎨 Customization Options:

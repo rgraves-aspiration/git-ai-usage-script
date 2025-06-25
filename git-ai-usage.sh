@@ -153,102 +153,6 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
-        --install)
-            echo "🤖 Installing Git AI Usage Analysis Script..."
-            
-            # Create local bin directory
-            mkdir -p "$HOME/.local/bin"
-            
-            # Copy this script to the local bin
-            SCRIPT_PATH="$(realpath "$0")"
-            cp "$SCRIPT_PATH" "$HOME/.local/bin/git-ai-usage"
-            chmod +x "$HOME/.local/bin/git-ai-usage"
-            
-            echo "✅ Installed to $HOME/.local/bin/git-ai-usage"
-            
-            # Determine shell config file
-            SHELL_RC=""
-            if [[ "$SHELL" == *"zsh"* ]]; then
-                SHELL_RC="$HOME/.zshrc"
-            elif [[ "$SHELL" == *"bash"* ]]; then
-                SHELL_RC="$HOME/.bashrc"
-            fi
-            
-            # Add to PATH if needed
-            if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-                echo "🔧 Adding $HOME/.local/bin to PATH..."
-                if [[ -n "$SHELL_RC" ]]; then
-                    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
-                    echo "✅ Added to PATH in $(basename "$SHELL_RC")"
-                fi
-            fi
-            
-            # Check if 'ai' alias already exists
-            ALIAS_EXISTS=false
-            EXISTING_ALIAS=""
-            if [[ -n "$SHELL_RC" && -f "$SHELL_RC" ]]; then
-                if grep -q "alias ai=" "$SHELL_RC" 2>/dev/null; then
-                    ALIAS_EXISTS=true
-                    EXISTING_ALIAS=$(grep "alias ai=" "$SHELL_RC" | head -1)
-                fi
-            fi
-            
-            # Handle alias creation
-            if [[ "$ALIAS_EXISTS" == true ]]; then
-                echo ""
-                echo "⚠️  Found existing 'ai' alias:"
-                echo "   $EXISTING_ALIAS"
-                echo ""
-                echo "Choose an option:"
-                echo "  1) Replace existing alias with git-ai-usage"
-                echo "  2) Create a different alias (e.g., 'gai')"
-                echo "  3) Skip alias creation"
-                echo ""
-                read -p "Enter choice (1-3): " CHOICE
-                
-                case $CHOICE in
-                    1)
-                        # Replace existing alias
-                        if command -v sed >/dev/null 2>&1; then
-                            sed -i.bak '/alias ai=/d' "$SHELL_RC"
-                            echo 'alias ai="git-ai-usage"' >> "$SHELL_RC"
-                            echo "✅ Replaced existing 'ai' alias"
-                        else
-                            echo "❌ Could not automatically replace alias. Please manually update:"
-                            echo "   Remove: $EXISTING_ALIAS"
-                            echo "   Add: alias ai=\"git-ai-usage\""
-                        fi
-                        ;;
-                    2)
-                        read -p "Enter new alias name (e.g., 'gai'): " NEW_ALIAS
-                        if [[ -n "$NEW_ALIAS" && "$NEW_ALIAS" =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
-                            echo "alias $NEW_ALIAS=\"git-ai-usage\"" >> "$SHELL_RC"
-                            echo "✅ Created '$NEW_ALIAS' alias"
-                        else
-                            echo "❌ Invalid alias name. Please manually add: alias YOUR_ALIAS=\"git-ai-usage\""
-                        fi
-                        ;;
-                    3)
-                        echo "⏭️  Skipped alias creation"
-                        ;;
-                    *)
-                        echo "❌ Invalid choice. Skipped alias creation"
-                        ;;
-                esac
-            else
-                # No existing alias, create 'ai' alias
-                if [[ -n "$SHELL_RC" ]]; then
-                    echo 'alias ai="git-ai-usage"' >> "$SHELL_RC"
-                    echo "✅ Created 'ai' alias in $(basename "$SHELL_RC")"
-                fi
-            fi
-            
-            echo ""
-            echo "🎉 Installation complete! Usage:"
-            echo "  cd /path/to/git/repo && ai"
-            echo "  git-ai-usage --help"
-            exit 0
-            ;;
         --help|-h)
             echo "Git AI Usage Analysis Script"
             echo "============================="
@@ -265,7 +169,6 @@ while [[ $# -gt 0 ]]; do
             echo "  --from=\"date\"         Start date for analysis (default: full history)"
             echo "  --to=\"date\"           End date for analysis (default: no limit)"
             echo "  -v, --verbose         Show detailed inclusion/exclusion patterns"
-            echo "  --install             Install script to ~/.local/bin with 'ai' alias"
             echo "  -h, --help            Show this help message"
             echo ""
             echo "DATE FORMATS:"
