@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.2.2] - 2025-06-25
+## [1.3.0] - 2025-06-25
+
+### Added
+- Intelligent parent branch detection for more accurate analysis of feature branches
+- Automatically detects the most likely parent branch instead of always comparing to default branch
+- Shows commits truly unique to the current branch when analyzing sub-branches
 
 ### Fixed
 - Current branch analysis now correctly shows only commits unique to that branch (excluding commits from default branch)

@@ -48,6 +48,7 @@ INCLUDE_BRANCH_PATTERNS=""
 ANALYZE_REMOTE_BRANCHES=false
 ANALYZE_LOCAL_BRANCHES=false
 VERBOSE=false
+PARENT_BRANCH=""  # Optional parent branch for more accurate current branch analysis
 
 # Minimum expected script size for update verification (bytes)
 # Based on current script size (~25KB), 10KB ensures we have a valid script
@@ -224,6 +225,10 @@ while [[ $# -gt 0 ]]; do
             AI_TAG="${1#*=}"
             shift
             ;;
+        --parent=*)
+            PARENT_BRANCH="${1#*=}"
+            shift
+            ;;
         --from=*)
             START_DATE=$(parse_relative_time "${1#*=}")
             shift
@@ -262,6 +267,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --include=\"pattern\"   Analyze branches matching pattern (regex supported)"
             echo "  --exclude=\"pattern\"   Add pattern to exclusion list (appends to defaults)"
             echo "  --pattern=\"regex\"     Custom AI tag pattern (default: '\\[AI')"
+            echo "  --parent=\"branch\"      Specify parent branch for more accurate current branch analysis"
             echo "  --local               Analyze all local branches (excludes current branch default)"
             echo "  --remote              Analyze all remote branches"
             echo "  --from=\"date\"         Start date for analysis (default: full history)"
@@ -277,7 +283,7 @@ while [[ $# -gt 0 ]]; do
             echo "               Combinations: 1w2d (1 week 2 days), 2d6h (2 days 6 hours)"
             echo ""
             echo "EXAMPLES:"
-            echo "  $0                                    # Current branch (commits unique to this branch)"
+            echo "  $0                                    # Current branch (auto-detects parent branch)"
             echo "  $0 --include=\"feature\"                # All branches containing 'feature'"
             echo "  $0 --include=\"rg/CPDE.*frontend\"      # Regex pattern matching"
             echo "  $0 --local                            # All local branches"
@@ -289,10 +295,13 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 --remote --include=\"main\" -v       # Remote main branch with verbose output"
             echo "  $0 --pattern=\"\\[AI-GENERATED\\]\"       # Custom AI tag pattern"
             echo "  $0 --pattern=\"Co-authored-by.*copilot\" # GitHub Copilot format"
+            echo "  $0 --parent=\"main\"                    # Specify parent branch explicitly"
             echo "  $0 --update                           # Update to latest version from GitHub"
             echo ""
             echo "NOTES:"
-            echo "  • Current branch analysis shows commits unique to that branch (excluding default branch)"
+            echo "  • Current branch analysis automatically detects the most likely parent branch"
+            echo "  • Shows commits unique to the current branch (excluding parent branch commits)"
+            echo "  • Falls back to default branch comparison if no clear parent is detected"
             echo "  • Default branch analysis includes all commits when analyzed directly"
             echo "  • Default exclusions: master, main, HEAD, and arrow notation (origin/HEAD -> ...)"
             echo "  • --exclude adds to defaults, doesn't replace them"
@@ -362,6 +371,51 @@ detect_default_branch() {
     fi
 }
 
+# --- Function to detect the parent branch ---
+# Attempts to find the most likely parent branch for the given branch
+# Falls back to default branch if no clear parent can be determined
+detect_parent_branch() {
+    local branch="$1"
+    local default_branch=$(detect_default_branch)
+    
+    # If user specified a parent branch explicitly, use it
+    if [ -n "$PARENT_BRANCH" ]; then
+        echo "$PARENT_BRANCH"
+        return
+    fi
+    
+    # If we're analyzing the default branch itself, no parent needed
+    if [ "$branch" = "$default_branch" ] || [ "$branch" = "origin/$default_branch" ]; then
+        echo ""
+        return
+    fi
+    
+    # Conservative auto-detection: only detect obvious cases
+    # Look for branches where the current branch was clearly created from their tip
+    local candidate_parents=$(git branch --format='%(refname:short)' | grep -vE "^($branch|$default_branch)$")
+    
+    for candidate in $candidate_parents; do
+        # Check if this candidate is an ancestor of our branch
+        if git merge-base --is-ancestor "$candidate" "$branch" 2>/dev/null; then
+            local merge_base=$(git merge-base "$candidate" "$branch" 2>/dev/null)
+            local candidate_head=$(git rev-parse "$candidate" 2>/dev/null)
+            
+            # Only consider it a parent if we branched from the exact tip
+            if [ "$candidate_head" = "$merge_base" ]; then
+                # Also ensure there are commits between them (we didn't just checkout the same commit)
+                local commits_between=$(git rev-list --count "$candidate..$branch" 2>/dev/null || echo "0")
+                if [ "$commits_between" -gt 0 ]; then
+                    echo "$candidate"
+                    return
+                fi
+            fi
+        fi
+    done
+    
+    # No clear parent found, use default branch
+    echo "$default_branch"
+}
+
 # --- Function to calculate lines and commits for a single branch ---
 # Takes branch name as argument
 calculate_branch_stats() {
@@ -379,8 +433,7 @@ calculate_branch_stats() {
 
     echo -e "  ${BLUE}→${NC} Analyzing branch: ${CYAN}$branch${NC}"
 
-    # For current branch analysis, we want commits unique to this branch (not shared with default)
-    # For multi-branch analysis, we also compare against the default branch to avoid double-counting
+    # Intelligently detect the best comparison base (parent branch)
     local comparison_base=""
     local default_branch=$(detect_default_branch)
     
@@ -390,19 +443,38 @@ calculate_branch_stats() {
         comparison_base=""
         echo -e "    ${PURPLE}Note: Analyzing default branch - including all commits${NC}"
     else
-        # For any other branch, exclude commits that are in the default branch
-        if [ "$ANALYZE_REMOTE_BRANCHES" = true ]; then
-            comparison_base="^origin/$default_branch"
+        # Try to detect the most likely parent branch
+        local parent_branch=$(detect_parent_branch "$branch")
+        
+        if [ -n "$PARENT_BRANCH" ]; then
+            echo -e "    ${PURPLE}Note: Using specified parent branch '$parent_branch' - analyzing commits unique to this branch${NC}"
+        elif [ "$parent_branch" = "$default_branch" ]; then
+            echo -e "    ${PURPLE}Note: Analyzing commits unique to this branch (excluding $default_branch)${NC}"
         else
-            comparison_base="^$default_branch"
+            echo -e "    ${PURPLE}Note: Auto-detected parent branch '$parent_branch' - analyzing commits unique to this branch${NC}"
         fi
         
-        # Check if the comparison base exists, if not, don't use it
-        if ! git show-ref --verify --quiet "refs/remotes/origin/$default_branch" && ! git show-ref --verify --quiet "refs/heads/$default_branch"; then
-            comparison_base=""
-            echo -e "    ${YELLOW}Warning: Default branch not found - analyzing all commits${NC}"
+        # Set up comparison base
+        if [ "$ANALYZE_REMOTE_BRANCHES" = true ]; then
+            comparison_base="^origin/$parent_branch"
         else
-            echo -e "    ${PURPLE}Note: Analyzing commits unique to this branch (excluding $default_branch)${NC}"
+            comparison_base="^$parent_branch"
+        fi
+        
+        # Check if the comparison base exists, if not, fall back to default branch
+        if ! git show-ref --verify --quiet "refs/remotes/origin/$parent_branch" && ! git show-ref --verify --quiet "refs/heads/$parent_branch"; then
+            echo -e "    ${YELLOW}Warning: Parent branch '$parent_branch' not found - falling back to $default_branch${NC}"
+            if [ "$ANALYZE_REMOTE_BRANCHES" = true ]; then
+                comparison_base="^origin/$default_branch"
+            else
+                comparison_base="^$default_branch"
+            fi
+            
+            # Final check for default branch
+            if ! git show-ref --verify --quiet "refs/remotes/origin/$default_branch" && ! git show-ref --verify --quiet "refs/heads/$default_branch"; then
+                comparison_base=""
+                echo -e "    ${YELLOW}Warning: No suitable parent branch found - analyzing all commits${NC}"
+            fi
         fi
     fi
 
