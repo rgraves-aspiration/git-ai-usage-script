@@ -176,6 +176,7 @@ while [[ $# -gt 0 ]]; do
             # Download the latest version
             echo "⬇️  Downloading latest version..."
             TEMP_SCRIPT=$(mktemp /tmp/git-ai-usage-update-XXXXXXXXXX)
+            trap 'rm -f "$TEMP_SCRIPT"' EXIT
             
             if command -v curl >/dev/null 2>&1; then
                 curl -sSL "https://raw.githubusercontent.com/rgraves-aspiration/git-ai-usage-script/main/git-ai-usage.sh" -o "$TEMP_SCRIPT"
@@ -189,7 +190,6 @@ while [[ $# -gt 0 ]]; do
             # Verify download
             if [ ! -f "$TEMP_SCRIPT" ] || [ ! -s "$TEMP_SCRIPT" ]; then
                 echo "❌ Error: Failed to download the latest version."
-                rm -f "$TEMP_SCRIPT"
                 exit 1
             fi
             
@@ -198,22 +198,27 @@ while [[ $# -gt 0 ]]; do
             if [ "$ACTUAL_SIZE" -lt "$MIN_VALID_SCRIPT_SIZE_BYTES" ]; then
                 echo "❌ Error: Downloaded file appears to be too small ($ACTUAL_SIZE bytes, expected at least $MIN_VALID_SCRIPT_SIZE_BYTES bytes)"
                 echo "   This may indicate a network error or the file was not downloaded correctly."
-                rm -f "$TEMP_SCRIPT"
                 exit 1
             fi
             
             # Verify it looks like a shell script (flexible shebang check)
             if ! head -1 "$TEMP_SCRIPT" | grep -q "^#!.*bash"; then
                 echo "❌ Error: Downloaded file doesn't appear to be a valid bash script"
-                rm -f "$TEMP_SCRIPT"
                 exit 1
             fi
             
             # Replace the installed version
             echo "🔄 Updating installed script..."
+            
+            # Check for write permissions on the target location
+            if [ ! -w "$INSTALLED_SCRIPT" ] && [ ! -w "$(dirname "$INSTALLED_SCRIPT")" ]; then
+                echo "❌ Error: Insufficient permissions to update the installed script at '$INSTALLED_SCRIPT'."
+                echo "   Please rerun this script with 'sudo' or ensure you have write access to the target location."
+                exit 1
+            fi
+            
             cp "$TEMP_SCRIPT" "$INSTALLED_SCRIPT"
             chmod +x "$INSTALLED_SCRIPT"
-            rm -f "$TEMP_SCRIPT"
             
             echo "✅ Update complete!"
             echo ""
