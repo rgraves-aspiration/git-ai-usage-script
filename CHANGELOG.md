@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2025-06-25
+
+### Added
+- `--pattern` flag for custom AI tag patterns (supports regex)
+- Enhanced installer with alias conflict detection
+- GitHub Copilot development instructions and policies
+
+### Changed
+- Removed integrated `--install` flag in favor of standalone installer
+- Improved installer alias handling (detects conflicts, offers alternatives)
+- Fixed default branch detection for repositories using 'main' vs 'master'
+- Updated installation documentation to use standalone installer
+- Clarified commit message format requirements in development guidelines
+
+### Removed
+- `--install` flag from main script (use standalone `install.sh` instead)
+
+### Fixed  
+- Default branch comparison logic now works with both 'main' and 'master'
+- Improved error handling for repositories without default branch setup
+
 ## [1.0.0] - 2025-06-25
 
 ### Added
@@ -21,14 +42,14 @@ All notable changes to this project will be documented in this file.
 - `--local` and `--remote` flags for branch type selection
 - `--from` and `--to` flags for date range specification
 - `--verbose` flag for detailed analysis information
-- `--pattern` flag for custom AI tag patterns
+- `--install` flag for easy system installation
 - Smart relative time parsing (days only = start of day, with hours = exact time)
 - Comprehensive help documentation
 
 ### Installation Options
-- One-liner curl installation with standalone installer
-- Git clone + standalone installer
-- Direct script download
+- One-liner curl installation
+- Git clone + script install  
+- Direct script download with --install flag
 - Simplified NPM package for Node.js teams
 
 ### Analysis Features
