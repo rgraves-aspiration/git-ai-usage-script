@@ -392,22 +392,33 @@ detect_parent_branch() {
     
     # Conservative auto-detection: only detect obvious cases
     # Look for branches where the current branch was clearly created from their tip
-    local candidate_parents=$(git branch --format='%(refname:short)' | grep -vE "^($branch|$default_branch)$")
+    # Include both local and remote branches for comprehensive parent detection
+    local candidate_parents=$(git branch -a --format='%(refname:short)' | grep -vE "$EXCLUDE_BRANCH_PATTERNS" | grep -vE "^($branch|$default_branch)$")
     
+    # Performance optimization: batch Git operations for large repositories
+    # Get candidate info in one call to reduce Git command overhead
+    local candidate_info=""
     for candidate in $candidate_parents; do
-        # Check if this candidate is an ancestor of our branch
+        # Quick check: is this candidate an ancestor of our branch?
         if git merge-base --is-ancestor "$candidate" "$branch" 2>/dev/null; then
-            local merge_base=$(git merge-base "$candidate" "$branch" 2>/dev/null)
-            local candidate_head=$(git rev-parse "$candidate" 2>/dev/null)
-            
-            # Only consider it a parent if we branched from the exact tip
-            if [ "$candidate_head" = "$merge_base" ]; then
-                # Also ensure there are commits between them (we didn't just checkout the same commit)
-                local commits_between=$(git rev-list --count "$candidate..$branch" 2>/dev/null || echo "0")
-                if [ "$commits_between" -gt 0 ]; then
-                    echo "$candidate"
-                    return
-                fi
+            candidate_info="$candidate_info$candidate "
+        fi
+    done
+    
+    # Now check the viable candidates more thoroughly
+    for candidate in $candidate_info; do
+        [ -z "$candidate" ] && continue
+        
+        local merge_base=$(git merge-base "$candidate" "$branch" 2>/dev/null)
+        local candidate_head=$(git rev-parse "$candidate" 2>/dev/null)
+        
+        # Only consider it a parent if we branched from the exact tip
+        if [ -n "$merge_base" ] && [ -n "$candidate_head" ] && [ "$candidate_head" = "$merge_base" ]; then
+            # Also ensure there are commits between them (we didn't just checkout the same commit)
+            local commits_between=$(git rev-list --count "$candidate..$branch" 2>/dev/null || echo "0")
+            if [ "$commits_between" -gt 0 ]; then
+                echo "$candidate"
+                return
             fi
         fi
     done

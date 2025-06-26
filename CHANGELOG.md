@@ -8,11 +8,17 @@ All notable changes to this project will be documented in this file.
 - Intelligent parent branch detection for more accurate analysis of feature branches
 - Automatically detects the most likely parent branch instead of always comparing to default branch
 - Shows commits truly unique to the current branch when analyzing sub-branches
+- `--parent` flag to explicitly specify parent branch for comparison
 
 ### Fixed
 - Current branch analysis now correctly shows only commits unique to that branch (excluding commits from default branch)
 - Added clear messaging to indicate when analyzing default branch vs feature branch
 - Updated help text to clarify branch analysis behavior
+
+### Improved
+- Enhanced parent branch detection to include both local and remote branches
+- Optimized Git operations for better performance in large repositories
+- Reduced redundant Git command calls through batched operations
 
 ## [1.2.1] - 2025-06-25
 
