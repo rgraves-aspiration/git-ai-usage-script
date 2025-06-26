@@ -393,7 +393,10 @@ detect_parent_branch() {
     # Conservative auto-detection: only detect obvious cases
     # Look for branches where the current branch was clearly created from their tip
     # Include both local and remote branches for comprehensive parent detection
-    local candidate_parents=$(git branch -a --format='%(refname:short)' | grep -vE "$EXCLUDE_BRANCH_PATTERNS" | grep -vE "^($branch|$default_branch)$")
+    
+    # Create comprehensive exclusion pattern that handles both local and remote branch variants
+    local branch_exclusions="^($branch|$default_branch|origin/$branch|origin/$default_branch)$"
+    local candidate_parents=$(git branch -a --format='%(refname:short)' | grep -vE "$EXCLUDE_BRANCH_PATTERNS" | grep -vE "$branch_exclusions")
     
     # Performance optimization: batch Git operations for large repositories
     # Get candidate info in one call to reduce Git command overhead
