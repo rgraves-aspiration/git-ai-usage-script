@@ -68,6 +68,7 @@ ai --update                 # Update to latest version
 ai --local                  # All local branches
 ai --remote                 # All remote branches  
 ai --include="feature"      # Branches matching pattern
+ai --parent="main"          # Specify parent branch for current branch analysis
 
 # Time ranges
 ai --from="2w"              # Past 2 weeks
@@ -80,6 +81,7 @@ ai --local --exclude="staging|temp" -v  # Exclude patterns, verbose output
 ai --remote --include="main" --from="1w" # Remote main branch, past week
 ai --pattern="\[AI-GENERATED\]" --local  # Custom AI tag pattern
 ai --pattern="Co-authored-by.*copilot"   # GitHub Copilot format
+ai --parent="develop"                     # Explicitly specify parent branch
 
 # Updates
 ai --update                              # Update to latest version from GitHub
@@ -94,6 +96,7 @@ Repository: my-project (/path/to/my-project)
 Date Range: 2025-06-18 00:00:00 onwards
 AI Pattern: \[AI
 Analysis Scope: Current branch only (feature/new-ui)
+Parent Branch: main (auto-detected)
 ═══════════════════════════════════════════════════════════
 
 📊 Branch Analysis
@@ -104,7 +107,7 @@ Analysis Scope: Current branch only (feature/new-ui)
 
 📈 Summary Results
 ═══════════════════════════════════════════════════════════
-Analysis: Current branch (feature/new-ui)
+Analysis: Current branch (feature/new-ui vs main)
 
 📝 COMMITS
 Total commits:     23
@@ -120,6 +123,31 @@ AI lines ratio:    92.7%
 ```
 
 ## ⚙️ Configuration
+
+### 🌿 Branch Analysis & Parent Detection
+
+When analyzing the **current branch**, the script automatically:
+- **Auto-detects the parent branch** using git merge-base analysis
+- **Shows only commits unique to your branch** (excludes commits from the parent/default branch)
+- **Falls back to default branch** (main/master) if no clear parent is detected
+- **Uses explicit parent** when you specify `--parent="branch-name"`
+
+**Parent Branch Detection Logic:**
+```bash
+# Automatic detection (recommended)
+ai                           # Auto-detects parent and shows unique commits
+
+# Explicit parent specification  
+ai --parent="develop"        # Use 'develop' as parent branch
+ai --parent="main"           # Use 'main' as parent branch
+```
+
+**Why Parent Detection Matters:**
+- **Feature branches** show only their new commits, not inherited ones
+- **Sub-branches** (e.g., `feature/auth/login-form` branched from `feature/auth`) correctly detect their immediate parent
+- **Accurate metrics** for branch-specific AI contribution analysis
+
+### 🎯 AI Tag Pattern Matching
 
 The script looks for commit messages containing `[AI` by default. You can customize this using the `--pattern` flag:
 
