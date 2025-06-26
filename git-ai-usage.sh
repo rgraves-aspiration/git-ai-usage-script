@@ -390,27 +390,44 @@ detect_parent_branch() {
         return
     fi
     
-    # Conservative auto-detection: only detect obvious cases
+    # Very conservative auto-detection: only detect recent, obvious cases
     # Look for branches where the current branch was clearly created from their tip
-    # Include both local and remote branches for comprehensive parent detection
+    # AND the parent branch is relatively recent (within last 6 months)
     
     # Create comprehensive exclusion pattern that handles both local and remote branch variants
     local branch_exclusions="^($branch|$default_branch|origin/$branch|origin/$default_branch)$"
     local candidate_parents=$(git branch -a --format='%(refname:short)' | grep -vE "$EXCLUDE_BRANCH_PATTERNS" | grep -vE "$branch_exclusions")
     
-    # Performance optimization: batch Git operations for large repositories
-    # Get candidate info in one call to reduce Git command overhead
-    local candidate_info=""
-    for candidate in $candidate_parents; do
-        # Quick check: is this candidate an ancestor of our branch?
-        if git merge-base --is-ancestor "$candidate" "$branch" 2>/dev/null; then
-            candidate_info="$candidate_info$candidate "
-        fi
-    done
+    # Only consider branches that have been active in the last 6 months to avoid ancient branches
+    local recent_threshold="6 months ago"
+    local best_candidate=""
+    local best_candidate_date=""
     
-    # Now check the viable candidates more thoroughly
-    for candidate in $candidate_info; do
+    for candidate in $candidate_parents; do
         [ -z "$candidate" ] && continue
+        
+        # Quick check: is this candidate an ancestor of our branch?
+        if ! git merge-base --is-ancestor "$candidate" "$branch" 2>/dev/null; then
+            continue
+        fi
+        
+        # Check if the candidate branch has recent activity
+        local candidate_date=$(git log -1 --format="%ct" "$candidate" 2>/dev/null || echo "0")
+        
+        # Calculate 6 months ago timestamp (cross-platform compatible)
+        local threshold_date
+        if command -v gdate >/dev/null 2>&1; then
+            # Use GNU date on macOS if available
+            threshold_date=$(gdate -d "6 months ago" +%s 2>/dev/null || echo "0")
+        else
+            # Use BSD date (macOS default) or fallback
+            threshold_date=$(date -v-6m +%s 2>/dev/null || date -d "6 months ago" +%s 2>/dev/null || echo "0")
+        fi
+        
+        # Skip very old branches
+        if [ "$candidate_date" -lt "$threshold_date" ]; then
+            continue
+        fi
         
         local merge_base=$(git merge-base "$candidate" "$branch" 2>/dev/null)
         local candidate_head=$(git rev-parse "$candidate" 2>/dev/null)
@@ -420,14 +437,21 @@ detect_parent_branch() {
             # Also ensure there are commits between them (we didn't just checkout the same commit)
             local commits_between=$(git rev-list --count "$candidate..$branch" 2>/dev/null || echo "0")
             if [ "$commits_between" -gt 0 ]; then
-                echo "$candidate"
-                return
+                # Prefer the most recent candidate among valid parents
+                if [ -z "$best_candidate" ] || [ "$candidate_date" -gt "$best_candidate_date" ]; then
+                    best_candidate="$candidate"
+                    best_candidate_date="$candidate_date"
+                fi
             fi
         fi
     done
     
-    # No clear parent found, use default branch
-    echo "$default_branch"
+    # Return the best candidate if found, otherwise use default branch
+    if [ -n "$best_candidate" ]; then
+        echo "$best_candidate"
+    else
+        echo "$default_branch"
+    fi
 }
 
 # --- Function to calculate lines and commits for a single branch ---
