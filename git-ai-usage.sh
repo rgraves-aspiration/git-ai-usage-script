@@ -399,9 +399,18 @@ detect_parent_branch() {
     local candidate_parents=$(git branch -a --format='%(refname:short)' | grep -vE "$EXCLUDE_BRANCH_PATTERNS" | grep -vE "$branch_exclusions")
     
     # Only consider branches that have been active in the last 6 months to avoid ancient branches
-    local recent_threshold="6 months ago"
     local best_candidate=""
     local best_candidate_date=""
+    
+    # Calculate 6 months ago timestamp once (cross-platform compatible)
+    local threshold_date
+    if command -v gdate >/dev/null 2>&1; then
+        # Use GNU date on macOS if available
+        threshold_date=$(gdate -d "6 months ago" +%s 2>/dev/null || echo "0")
+    else
+        # Use BSD date (macOS default) or fallback
+        threshold_date=$(date -v-6m +%s 2>/dev/null || date -d "6 months ago" +%s 2>/dev/null || echo "0")
+    fi
     
     for candidate in $candidate_parents; do
         [ -z "$candidate" ] && continue
@@ -413,16 +422,6 @@ detect_parent_branch() {
         
         # Check if the candidate branch has recent activity
         local candidate_date=$(git log -1 --format="%ct" "$candidate" 2>/dev/null || echo "0")
-        
-        # Calculate 6 months ago timestamp (cross-platform compatible)
-        local threshold_date
-        if command -v gdate >/dev/null 2>&1; then
-            # Use GNU date on macOS if available
-            threshold_date=$(gdate -d "6 months ago" +%s 2>/dev/null || echo "0")
-        else
-            # Use BSD date (macOS default) or fallback
-            threshold_date=$(date -v-6m +%s 2>/dev/null || date -d "6 months ago" +%s 2>/dev/null || echo "0")
-        fi
         
         # Skip very old branches
         if [ "$candidate_date" -lt "$threshold_date" ]; then
