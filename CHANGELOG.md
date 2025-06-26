@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2025-06-25
+
+### Fixed
+- Improved parent branch detection to avoid selecting very old/inactive branches
+- Added 6-month activity filter to exclude ancient branches from parent detection
+- Parent detection now prefers the most recent valid parent among candidates
+- Fixed cross-platform date command compatibility for BSD and GNU systems
+- Cleaner output when falling back to default branch (no confusing auto-detection messages)
+
 ## [1.3.0] - 2025-06-25
 
 ### Added
