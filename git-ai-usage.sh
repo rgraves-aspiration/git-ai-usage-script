@@ -412,6 +412,10 @@ detect_parent_branch() {
         threshold_date=$(date -v-6m +%s 2>/dev/null || date -d "6 months ago" +%s 2>/dev/null || echo "0")
     fi
     
+    # Fetch all last-commit timestamps in one call for better performance
+    local candidate_timestamps=$(git for-each-ref --format="%(refname:short):%(committerdate:unix)" \
+        refs/heads refs/remotes 2>/dev/null | grep -F "$(echo "$candidate_parents" | tr ' ' '\n')" || echo "")
+    
     for candidate in $candidate_parents; do
         [ -z "$candidate" ] && continue
         
@@ -420,8 +424,8 @@ detect_parent_branch() {
             continue
         fi
         
-        # Check if the candidate branch has recent activity
-        local candidate_date=$(git log -1 --format="%ct" "$candidate" 2>/dev/null || echo "0")
+        # Extract the timestamp for the candidate branch
+        local candidate_date=$(echo "$candidate_timestamps" | grep -E "^$candidate:" | cut -d':' -f2 || echo "0")
         
         # Skip very old branches
         if [ "$candidate_date" -lt "$threshold_date" ]; then
