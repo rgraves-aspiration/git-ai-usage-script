@@ -142,6 +142,12 @@ ai --parent="develop"        # Use 'develop' as parent branch
 ai --parent="main"           # Use 'main' as parent branch
 ```
 
+**Smart Parent Detection Features:**
+- **Avoids ancient branches** - Only considers branches active within the last 6 months
+- **Prefers recent parents** - Chooses the most recently active valid parent branch
+- **Cross-platform compatible** - Works reliably on macOS, Linux, and other Unix systems
+- **Conservative logic** - Only detects obvious parent relationships to avoid false positives
+
 **Why Parent Detection Matters:**
 - **Feature branches** show only their new commits, not inherited ones
 - **Sub-branches** (e.g., `feature/auth/login-form` branched from `feature/auth`) correctly detect their immediate parent

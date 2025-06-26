@@ -1,6 +1,6 @@
 {
   "name": "git-ai-usage-script",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Analyze AI-assisted code contributions in git repositories",
   "main": "git-ai-usage.sh",
   "bin": {
