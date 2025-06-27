@@ -645,9 +645,9 @@ calculate_branch_stats() {
           grep -E \"^\+\" | grep -vE \"^\+\+\+\" | wc -l")
 
         # Count commits (unique to this branch)
-        current_branch_total_commits=$(eval "git log --no-merges $date_clause \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | wc -l")
+        current_branch_total_commits=$(eval "git log --no-merges $date_clause \"$branch\" $comparison_base --oneline 2>/dev/null | wc -l")
 
-        current_branch_ai_commits=$(eval "git log --no-merges $date_clause --grep=\"$AI_TAG\" \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | wc -l")
+        current_branch_ai_commits=$(eval "git log --no-merges $date_clause --grep=\"$AI_TAG\" \"$branch\" $comparison_base --oneline 2>/dev/null | wc -l")
     else
         # Include all commits on this branch (for current branch analysis)
         current_branch_total_lines=$(eval "git log --no-merges $date_clause \"$branch\" --pretty=format:%H 2>/dev/null | \
@@ -659,9 +659,9 @@ calculate_branch_stats() {
           grep -E \"^\+\" | grep -vE \"^\+\+\+\" | wc -l")
 
         # Count commits
-        current_branch_total_commits=$(eval "git log --no-merges $date_clause \"$branch\" --pretty=format:%H 2>/dev/null | wc -l")
+        current_branch_total_commits=$(eval "git log --no-merges $date_clause \"$branch\" --oneline 2>/dev/null | wc -l")
 
-        current_branch_ai_commits=$(eval "git log --no-merges $date_clause --grep=\"$AI_TAG\" \"$branch\" --pretty=format:%H 2>/dev/null | wc -l")
+        current_branch_ai_commits=$(eval "git log --no-merges $date_clause --grep=\"$AI_TAG\" \"$branch\" --oneline 2>/dev/null | wc -l")
     fi
 
     # Calculate percentages for this branch
