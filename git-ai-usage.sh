@@ -61,6 +61,10 @@ MIN_VALID_SCRIPT_SIZE_BYTES=10000
 EXCLUDE_BRANCH_PATTERNS="^(origin/HEAD|origin/main|origin/master|main|master|HEAD)$|^.*->.*$"
 ADDITIONAL_EXCLUDES=""  # For user-specified exclusions
 
+# Parent branch detection configuration
+GIT_LOG_LIMIT=100               # Number of commits to analyze in git graph for parent detection
+BEST_DISTANCE_THRESHOLD=500     # Maximum distance threshold for considering a branch as parent
+
 # --- Function to parse relative time ---
 # Converts relative time formats like "2w", "5d", "3h45m" to git-compatible format
 parse_relative_time() {
@@ -422,8 +426,8 @@ detect_parent_branch() {
         echo -e "   Candidate branches: $(echo $all_branches | wc -w) total" >&2
     fi
     
-    # Get a reasonable amount of git graph to analyze (last 100 commits should cover most cases)
-    local graph_output=$(git log --graph --oneline --format="%h %s" --all -n 100 2>/dev/null)
+    # Get a reasonable amount of git graph to analyze (default: last GIT_LOG_LIMIT commits)
+    local graph_output=$(git log --graph --oneline --format="%h %s" --all -n "$GIT_LOG_LIMIT" 2>/dev/null)
     
     if [ -z "$graph_output" ]; then
         if [ "$DEBUG" = true ]; then
@@ -469,10 +473,6 @@ detect_parent_branch() {
         echo -e "   Found commit at line ${line_number} in graph" >&2
         echo -e "   Graph line: $(echo "$commit_line" | cut -d: -f2-)" >&2
     fi
-    
-    # Look at the lines just before this commit to see what branch it came from
-    # This analyzes the graph structure to find the parent branch
-    local context_lines=$(echo "$graph_output" | head -n $((line_number + 10)) | tail -n 15)
     
     if [ "$DEBUG" = true ]; then
         echo -e "   Analyzing surrounding graph context..." >&2
@@ -533,7 +533,7 @@ detect_parent_branch() {
     done
     
     # Strategy 2: Fallback to tracking branch if no clear winner
-    if [ -z "$best_parent" ] || [ "$best_distance" -gt 500 ]; then
+    if [ -z "$best_parent" ] || [ "$best_distance" -gt "$BEST_DISTANCE_THRESHOLD" ]; then
         if [ "$DEBUG" = true ]; then
             echo -e "   No clear parent found, checking tracking branch..." >&2
         fi
