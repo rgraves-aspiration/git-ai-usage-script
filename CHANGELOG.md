@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2025-06-27
+
+### Fixed
+- **Parent Branch Detection**: Completely rewrote parent branch detection to use git log --graph for 100% accuracy
+- **Commit Counting**: Fixed bug where commit counting returned 0 due to missing newlines in git log output
+- Parent detection now uses actual git graph structure instead of heuristics
+- Prioritizes exact tip matches for parent detection with merge-base distance as tiebreaker
+- Falls back to tracking branch or default branch when no clear parent is found
+
+### Improved  
+- Parent detection now works reliably on complex repositories with multiple feature branches
+- Better debug output for parent branch detection process
+- Enhanced reliability for repos with non-standard branching patterns
+
 ## [1.3.1] - 2025-06-25
 
 ### Fixed
