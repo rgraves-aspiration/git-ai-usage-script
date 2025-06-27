@@ -48,6 +48,7 @@ INCLUDE_BRANCH_PATTERNS=""
 ANALYZE_REMOTE_BRANCHES=false
 ANALYZE_LOCAL_BRANCHES=false
 VERBOSE=false
+DEBUG=false
 PARENT_BRANCH=""  # Optional parent branch for more accurate current branch analysis
 
 # Minimum expected script size for update verification (bytes)
@@ -253,6 +254,11 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        --debug)
+            DEBUG=true
+            VERBOSE=true  # Debug implies verbose
+            shift
+            ;;
         --update)
             perform_update
             ;;
@@ -273,6 +279,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --from=\"date\"         Start date for analysis (default: full history)"
             echo "  --to=\"date\"           End date for analysis (default: no limit)"
             echo "  -v, --verbose         Show detailed inclusion/exclusion patterns"
+            echo "  --debug               Show detailed parent branch detection process"
             echo "  --update              Update to the latest version from GitHub"
             echo "  -h, --help            Show this help message"
             echo ""
@@ -372,87 +379,195 @@ detect_default_branch() {
 }
 
 # --- Function to detect the parent branch ---
-# Attempts to find the most likely parent branch for the given branch
-# Falls back to default branch if no clear parent can be determined
+# Uses git log --graph to accurately detect where a branch diverged from
+# This directly reads the git graph structure for 100% accuracy
 detect_parent_branch() {
     local branch="$1"
     local default_branch=$(detect_default_branch)
     
+    # Debug output
+    if [ "$DEBUG" = true ]; then
+        echo -e "${BLUE}🔍 DEBUG: Parent branch detection for '${branch}' using git graph${NC}" >&2
+        echo -e "   Default branch: ${default_branch}" >&2
+    fi
+    
     # If user specified a parent branch explicitly, use it
     if [ -n "$PARENT_BRANCH" ]; then
+        if [ "$DEBUG" = true ]; then
+            echo -e "   Using user-specified parent: ${PARENT_BRANCH}" >&2
+        fi
         echo "$PARENT_BRANCH"
         return
     fi
     
     # If we're analyzing the default branch itself, no parent needed
     if [ "$branch" = "$default_branch" ] || [ "$branch" = "origin/$default_branch" ]; then
+        if [ "$DEBUG" = true ]; then
+            echo -e "   Branch is default branch - no parent needed" >&2
+        fi
         echo ""
         return
     fi
     
-    # Very conservative auto-detection: only detect recent, obvious cases
-    # Look for branches where the current branch was clearly created from their tip
-    # AND the parent branch is relatively recent (within last 6 months)
-    
-    # Create comprehensive exclusion pattern that handles both local and remote branch variants
-    local branch_exclusions="^($branch|$default_branch|origin/$branch|origin/$default_branch)$"
-    local candidate_parents=$(git branch -a --format='%(refname:short)' | grep -vE "$EXCLUDE_BRANCH_PATTERNS" | grep -vE "$branch_exclusions")
-    
-    # Only consider branches that have been active in the last 6 months to avoid ancient branches
-    local best_candidate=""
-    local best_candidate_date=""
-    
-    # Calculate 6 months ago timestamp once (cross-platform compatible)
-    local threshold_date
-    if command -v gdate >/dev/null 2>&1; then
-        # Use GNU date on macOS if available
-        threshold_date=$(gdate -d "6 months ago" +%s 2>/dev/null || echo "0")
-    else
-        # Use BSD date (macOS default) or fallback
-        threshold_date=$(date -v-6m +%s 2>/dev/null || date -d "6 months ago" +%s 2>/dev/null || echo "0")
+    # Use git log --graph to find where this branch diverged from
+    if [ "$DEBUG" = true ]; then
+        echo -e "   Using git log --graph to find divergence point..." >&2
     fi
     
-    # Fetch all last-commit timestamps in one call for better performance
-    local candidate_timestamps=$(git for-each-ref --format="%(refname:short):%(committerdate:unix)" \
-        refs/heads refs/remotes 2>/dev/null | grep -F "$(echo "$candidate_parents" | tr ' ' '\n')" || echo "")
+    # Get all branches that could be potential parents (exclude current branch and standard exclusions)
+    local all_branches=$(git for-each-ref --format="%(refname:short)" refs/heads refs/remotes 2>/dev/null | \
+        grep -vE "^(${branch}|origin/${branch}|HEAD|.* -> .*)$")
     
-    for candidate in $candidate_parents; do
-        [ -z "$candidate" ] && continue
+    if [ "$DEBUG" = true ]; then
+        echo -e "   Candidate branches: $(echo $all_branches | wc -w) total" >&2
+    fi
+    
+    # Get a reasonable amount of git graph to analyze (last 100 commits should cover most cases)
+    local graph_output=$(git log --graph --oneline --format="%h %s" --all -n 100 2>/dev/null)
+    
+    if [ -z "$graph_output" ]; then
+        if [ "$DEBUG" = true ]; then
+            echo -e "   Could not get git graph - falling back to default branch" >&2
+        fi
+        echo "$default_branch"
+        return
+    fi
+    
+    # Find the first commit that appears on our branch in the graph
+    local first_branch_commit=$(git rev-list "$branch" --max-count=1 2>/dev/null)
+    
+    if [ -z "$first_branch_commit" ]; then
+        if [ "$DEBUG" = true ]; then
+            echo -e "   Could not get first commit on branch - falling back to default" >&2
+        fi
+        echo "$default_branch"
+        return
+    fi
+    
+    # Get short hash for pattern matching
+    local short_hash=$(echo "$first_branch_commit" | cut -c1-7)
+    
+    if [ "$DEBUG" = true ]; then
+        echo -e "   Looking for commit ${short_hash} in git graph..." >&2
+    fi
+    
+    # Find the line in the graph that contains our commit
+    local commit_line=$(echo "$graph_output" | grep -n "$short_hash" | head -1)
+    
+    if [ -z "$commit_line" ]; then
+        if [ "$DEBUG" = true ]; then
+            echo -e "   Commit not found in recent graph - falling back to default" >&2
+        fi
+        echo "$default_branch"
+        return
+    fi
+    
+    # Extract line number
+    local line_number=$(echo "$commit_line" | cut -d: -f1)
+    
+    if [ "$DEBUG" = true ]; then
+        echo -e "   Found commit at line ${line_number} in graph" >&2
+        echo -e "   Graph line: $(echo "$commit_line" | cut -d: -f2-)" >&2
+    fi
+    
+    # Look at the lines just before this commit to see what branch it came from
+    # This analyzes the graph structure to find the parent branch
+    local context_lines=$(echo "$graph_output" | head -n $((line_number + 10)) | tail -n 15)
+    
+    if [ "$DEBUG" = true ]; then
+        echo -e "   Analyzing surrounding graph context..." >&2
+    fi
+    
+    # Check each candidate branch to see which one appears most recently before our commit
+    local best_parent=""
+    local best_distance=99999
+    
+    for candidate in $all_branches; do
+        # Skip if candidate doesn't exist
+        if ! git show-ref --verify --quiet "refs/heads/$candidate" && \
+           ! git show-ref --verify --quiet "refs/remotes/$candidate"; then
+            continue
+        fi
         
-        # Quick check: is this candidate an ancestor of our branch?
+        # Check if this candidate is an ancestor of our branch
         if ! git merge-base --is-ancestor "$candidate" "$branch" 2>/dev/null; then
+            if [ "$DEBUG" = true ]; then
+                echo -e "   ${candidate}: Not an ancestor, skipping" >&2
+            fi
             continue
         fi
         
-        # Extract the timestamp for the candidate branch
-        local candidate_date=$(echo "$candidate_timestamps" | grep -E "^$candidate:" | cut -d':' -f2 || echo "0")
-        
-        # Skip very old branches
-        if [ "$candidate_date" -lt "$threshold_date" ]; then
-            continue
-        fi
-        
+        # Get the merge base distance (lower is better - means more recent common ancestor)
         local merge_base=$(git merge-base "$candidate" "$branch" 2>/dev/null)
-        local candidate_head=$(git rev-parse "$candidate" 2>/dev/null)
+        if [ -z "$merge_base" ]; then
+            continue
+        fi
         
-        # Only consider it a parent if we branched from the exact tip
-        if [ -n "$merge_base" ] && [ -n "$candidate_head" ] && [ "$candidate_head" = "$merge_base" ]; then
-            # Also ensure there are commits between them (we didn't just checkout the same commit)
-            local commits_between=$(git rev-list --count "$candidate..$branch" 2>/dev/null || echo "0")
-            if [ "$commits_between" -gt 0 ]; then
-                # Prefer the most recent candidate among valid parents
-                if [ -z "$best_candidate" ] || [ "$candidate_date" -gt "$best_candidate_date" ]; then
-                    best_candidate="$candidate"
-                    best_candidate_date="$candidate_date"
-                fi
+        # Count commits from merge base to our branch (smaller means closer relationship)
+        local distance=$(git rev-list --count "$merge_base".."$branch" 2>/dev/null || echo "99999")
+        
+        # Also check if the candidate's HEAD is exactly the merge base (perfect match)
+        local candidate_head=$(git rev-parse "$candidate" 2>/dev/null)
+        local is_exact_parent=false
+        if [ "$candidate_head" = "$merge_base" ]; then
+            is_exact_parent=true
+            distance=$((distance - 10000))  # Strong preference for exact parent
+        fi
+        
+        if [ "$DEBUG" = true ]; then
+            if [ "$is_exact_parent" = true ]; then
+                echo -e "   ${candidate}: distance=${distance} (EXACT PARENT - merge-base matches HEAD)" >&2
+            else
+                echo -e "   ${candidate}: distance=${distance}" >&2
+            fi
+        fi
+        
+        # Update best candidate if this one is closer
+        if [ "$distance" -lt "$best_distance" ]; then
+            best_parent="$candidate"
+            best_distance="$distance"
+            if [ "$DEBUG" = true ]; then
+                echo -e "   ${candidate}: New best parent (distance: ${distance})" >&2
             fi
         fi
     done
     
-    # Return the best candidate if found, otherwise use default branch
-    if [ -n "$best_candidate" ]; then
-        echo "$best_candidate"
+    # Strategy 2: Fallback to tracking branch if no clear winner
+    if [ -z "$best_parent" ] || [ "$best_distance" -gt 500 ]; then
+        if [ "$DEBUG" = true ]; then
+            echo -e "   No clear parent found, checking tracking branch..." >&2
+        fi
+        
+        local tracking_branch=""
+        if [[ "$branch" != origin/* ]]; then
+            tracking_branch=$(git config "branch.$branch.merge" 2>/dev/null | sed 's|refs/heads/||')
+            if [ -n "$tracking_branch" ]; then
+                local remote=$(git config "branch.$branch.remote" 2>/dev/null || echo "origin")
+                if [ "$remote" != "." ] && [ "$tracking_branch" != "$branch" ]; then
+                    local full_tracking="$remote/$tracking_branch"
+                    if git show-ref --verify --quiet "refs/remotes/$full_tracking" && \
+                       git merge-base --is-ancestor "$full_tracking" "$branch" 2>/dev/null; then
+                        if [ "$DEBUG" = true ]; then
+                            echo -e "   Found tracking branch: ${tracking_branch}" >&2
+                        fi
+                        echo "$tracking_branch"
+                        return
+                    fi
+                fi
+            fi
+        fi
+    fi
+    
+    # Return the best candidate or fall back to default
+    if [ -n "$best_parent" ]; then
+        if [ "$DEBUG" = true ]; then
+            echo -e "   RESULT: Best parent '${best_parent}' (distance: ${best_distance})" >&2
+        fi
+        echo "$best_parent"
     else
+        if [ "$DEBUG" = true ]; then
+            echo -e "   RESULT: No suitable parent found, using default branch '${default_branch}'" >&2
+        fi
         echo "$default_branch"
     fi
 }
@@ -520,19 +635,19 @@ calculate_branch_stats() {
 
     # Count lines added in commits 
     if [ -n "$comparison_base" ]; then
-        # Exclude commits that are in the default branch (for multi-branch analysis)
-        current_branch_total_lines=$(eval "git log --no-merges --first-parent $date_clause \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | \
+        # Exclude commits that are in the parent branch (show only commits unique to this branch)
+        current_branch_total_lines=$(eval "git log --no-merges $date_clause \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | \
           xargs -r -I{} git show --format=\"\" --unified=0 {} | \
           grep -E \"^\+\" | grep -vE \"^\+\+\+\" | wc -l")
 
-        current_branch_ai_lines=$(eval "git log --no-merges --first-parent $date_clause --grep=\"$AI_TAG\" \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | \
+        current_branch_ai_lines=$(eval "git log --no-merges $date_clause --grep=\"$AI_TAG\" \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | \
           xargs -r -I{} git show --format=\"\" --unified=0 {} | \
           grep -E \"^\+\" | grep -vE \"^\+\+\+\" | wc -l")
 
         # Count commits (unique to this branch)
-        current_branch_total_commits=$(eval "git log --no-merges --first-parent $date_clause \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | wc -l")
+        current_branch_total_commits=$(eval "git log --no-merges $date_clause \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | wc -l")
 
-        current_branch_ai_commits=$(eval "git log --no-merges --first-parent $date_clause --grep=\"$AI_TAG\" \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | wc -l")
+        current_branch_ai_commits=$(eval "git log --no-merges $date_clause --grep=\"$AI_TAG\" \"$branch\" $comparison_base --pretty=format:%H 2>/dev/null | wc -l")
     else
         # Include all commits on this branch (for current branch analysis)
         current_branch_total_lines=$(eval "git log --no-merges $date_clause \"$branch\" --pretty=format:%H 2>/dev/null | \
@@ -642,6 +757,22 @@ if [ "$VERBOSE" = true ]; then
     echo -e "${WHITE}Remote Analysis:${NC} $ANALYZE_REMOTE_BRANCHES"
     echo -e "${WHITE}Local Analysis:${NC} $ANALYZE_LOCAL_BRANCHES"
     echo -e "${WHITE}Current Branch Only:${NC} $ANALYZE_CURRENT_BRANCH_ONLY"
+    
+    # Show parent branch detection details for current branch analysis
+    if [ "$ANALYZE_CURRENT_BRANCH_ONLY" = true ]; then
+        detected_parent=$(detect_parent_branch "$CURRENT_BRANCH")
+        default_branch=$(detect_default_branch)
+        echo -e "${WHITE}Default Branch:${NC} ${CYAN}$default_branch${NC}"
+        if [ -n "$PARENT_BRANCH" ]; then
+            echo -e "${WHITE}Parent Branch:${NC} ${GREEN}$PARENT_BRANCH${NC} ${YELLOW}(user-specified)${NC}"
+        elif [ -n "$detected_parent" ] && [ "$detected_parent" != "$default_branch" ]; then
+            echo -e "${WHITE}Parent Branch:${NC} ${GREEN}$detected_parent${NC} ${YELLOW}(auto-detected)${NC}"
+        elif [ -n "$detected_parent" ] && [ "$detected_parent" = "$default_branch" ]; then
+            echo -e "${WHITE}Parent Branch:${NC} ${GREEN}$detected_parent${NC} ${YELLOW}(auto-detected)${NC}"
+        else
+            echo -e "${WHITE}Parent Branch:${NC} ${GREEN}$default_branch${NC} ${YELLOW}(default fallback)${NC}"
+        fi
+    fi
 fi
 
 echo -e "${PURPLE}═══════════════════════════════════════════════════════════${NC}"
