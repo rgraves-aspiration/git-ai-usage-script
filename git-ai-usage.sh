@@ -64,6 +64,7 @@ ADDITIONAL_EXCLUDES=""  # For user-specified exclusions
 # Parent branch detection configuration
 GIT_LOG_LIMIT=100               # Number of commits to analyze in git graph for parent detection
 BEST_DISTANCE_THRESHOLD=500     # Maximum distance threshold for considering a branch as parent
+EXACT_PARENT_PREFERENCE=10000   # Strong preference bonus for exact parent matches
 
 # --- Function to parse relative time ---
 # Converts relative time formats like "2w", "5d", "3h45m" to git-compatible format
@@ -511,7 +512,7 @@ detect_parent_branch() {
         local is_exact_parent=false
         if [ "$candidate_head" = "$merge_base" ]; then
             is_exact_parent=true
-            distance=$((distance - 10000))  # Strong preference for exact parent
+            distance=$((distance - EXACT_PARENT_PREFERENCE))  # Strong preference for exact parent
         fi
         
         if [ "$DEBUG" = true ]; then
