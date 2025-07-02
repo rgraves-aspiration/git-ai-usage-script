@@ -18,9 +18,9 @@ All notable changes to this project will be documented in this file.
 - Enhanced reliability for repos with non-standard branching patterns
 
 ### Code Quality
-- Added configurable constants `GIT_LOG_LIMIT` and `BEST_DISTANCE_THRESHOLD` for better maintainability
+- Added configurable constants `GIT_LOG_LIMIT`, `BEST_DISTANCE_THRESHOLD`, and `EXACT_PARENT_PREFERENCE` for better maintainability
 - Removed unused variables to clean up codebase
-- Replaced magic numbers with named constants per code review feedback
+- Replaced all magic numbers with named constants per code review feedback
 - Improved code readability and configurability
 
 ## [1.3.1] - 2025-06-25
