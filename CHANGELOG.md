@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [1.3.2] - 2025-06-27
 
 ### Fixed
+- **Base Branch Detection**: Fixed critical bug where main/master branches were excluded from base branch detection
+- Script now correctly identifies `main` as the base branch for feature branches instead of detecting other feature branches
+- Base branch detection now only excludes the current branch and symbolic references, allowing main/master to be properly detected
 - **Parent Branch Detection**: Completely rewrote parent branch detection to use git log --graph for 100% accuracy
 - **Commit Counting**: Fixed bug where commit counting returned 0 due to missing newlines in git log output
 - Parent detection now uses actual git graph structure instead of heuristics
@@ -16,6 +19,9 @@ All notable changes to this project will be documented in this file.
 - More accurate commit counting by switching from --pretty=format:%H to --oneline
 - Better debug output for parent branch detection process
 - Enhanced reliability for repos with non-standard branching patterns
+- **Terminology Clarification**: Updated user-facing terminology from "parent branch" to "base branch" for clarity
+- Changed help text, debug output, and user messages to use "base branch" consistently
+- Clarifies that we're detecting the branch that the current branch split off from, not git commit parents
 
 ### Code Quality
 - Added configurable constants `GIT_LOG_LIMIT`, `BEST_DISTANCE_THRESHOLD`, and `EXACT_PARENT_PREFERENCE` for better maintainability

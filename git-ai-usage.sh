@@ -49,7 +49,7 @@ ANALYZE_REMOTE_BRANCHES=false
 ANALYZE_LOCAL_BRANCHES=false
 VERBOSE=false
 DEBUG=false
-PARENT_BRANCH=""  # Optional parent branch for more accurate current branch analysis
+PARENT_BRANCH=""  # Optional base branch for more accurate current branch analysis
 
 # Minimum expected script size for update verification (bytes)
 # Based on current script size (~25KB), 10KB ensures we have a valid script
@@ -278,13 +278,13 @@ while [[ $# -gt 0 ]]; do
             echo "  --include=\"pattern\"   Analyze branches matching pattern (regex supported)"
             echo "  --exclude=\"pattern\"   Add pattern to exclusion list (appends to defaults)"
             echo "  --pattern=\"regex\"     Custom AI tag pattern (default: '\\[AI')"
-            echo "  --parent=\"branch\"      Specify parent branch for more accurate current branch analysis"
+            echo "  --parent=\"branch\"      Specify base branch for more accurate current branch analysis"
             echo "  --local               Analyze all local branches (excludes current branch default)"
             echo "  --remote              Analyze all remote branches"
             echo "  --from=\"date\"         Start date for analysis (default: full history)"
             echo "  --to=\"date\"           End date for analysis (default: no limit)"
             echo "  -v, --verbose         Show detailed inclusion/exclusion patterns"
-            echo "  --debug               Show detailed parent branch detection process"
+            echo "  --debug               Show detailed base branch detection process"
             echo "  --update              Update to the latest version from GitHub"
             echo "  -h, --help            Show this help message"
             echo ""
@@ -295,7 +295,7 @@ while [[ $# -gt 0 ]]; do
             echo "               Combinations: 1w2d (1 week 2 days), 2d6h (2 days 6 hours)"
             echo ""
             echo "EXAMPLES:"
-            echo "  $0                                    # Current branch (auto-detects parent branch)"
+            echo "  $0                                    # Current branch (auto-detects base branch)"
             echo "  $0 --include=\"feature\"                # All branches containing 'feature'"
             echo "  $0 --include=\"rg/CPDE.*frontend\"      # Regex pattern matching"
             echo "  $0 --local                            # All local branches"
@@ -307,12 +307,12 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 --remote --include=\"main\" -v       # Remote main branch with verbose output"
             echo "  $0 --pattern=\"\\[AI-GENERATED\\]\"       # Custom AI tag pattern"
             echo "  $0 --pattern=\"Co-authored-by.*copilot\" # GitHub Copilot format"
-            echo "  $0 --parent=\"main\"                    # Specify parent branch explicitly"
+            echo "  $0 --parent=\"main\"                    # Specify base branch explicitly"
             echo "  $0 --update                           # Update to latest version from GitHub"
             echo ""
             echo "NOTES:"
-            echo "  • Current branch analysis automatically detects the most likely parent branch"
-            echo "  • Shows commits unique to the current branch (excluding parent branch commits)"
+            echo "  • Current branch analysis automatically detects the most likely base branch"
+            echo "  • Shows commits unique to the current branch (excluding base branch commits)"
             echo "  • Falls back to default branch comparison if no clear parent is detected"
             echo "  • Default branch analysis includes all commits when analyzed directly"
             echo "  • Default exclusions: master, main, HEAD, and arrow notation (origin/HEAD -> ...)"
@@ -761,13 +761,13 @@ if [ "$VERBOSE" = true ]; then
         default_branch=$(detect_default_branch)
         echo -e "${WHITE}Default Branch:${NC} ${CYAN}$default_branch${NC}"
         if [ -n "$PARENT_BRANCH" ]; then
-            echo -e "${WHITE}Parent Branch:${NC} ${GREEN}$PARENT_BRANCH${NC} ${YELLOW}(user-specified)${NC}"
+            echo -e "${WHITE}Base Branch:${NC} ${GREEN}$PARENT_BRANCH${NC} ${YELLOW}(user-specified)${NC}"
         elif [ -n "$detected_parent" ] && [ "$detected_parent" != "$default_branch" ]; then
-            echo -e "${WHITE}Parent Branch:${NC} ${GREEN}$detected_parent${NC} ${YELLOW}(auto-detected)${NC}"
+            echo -e "${WHITE}Base Branch:${NC} ${GREEN}$detected_parent${NC} ${YELLOW}(auto-detected)${NC}"
         elif [ -n "$detected_parent" ] && [ "$detected_parent" = "$default_branch" ]; then
-            echo -e "${WHITE}Parent Branch:${NC} ${GREEN}$detected_parent${NC} ${YELLOW}(auto-detected)${NC}"
+            echo -e "${WHITE}Base Branch:${NC} ${GREEN}$detected_parent${NC} ${YELLOW}(auto-detected)${NC}"
         else
-            echo -e "${WHITE}Parent Branch:${NC} ${GREEN}$default_branch${NC} ${YELLOW}(default fallback)${NC}"
+            echo -e "${WHITE}Base Branch:${NC} ${GREEN}$default_branch${NC} ${YELLOW}(default fallback)${NC}"
         fi
     fi
 fi
