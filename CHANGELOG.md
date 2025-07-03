@@ -19,7 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### Code Quality
 - Added configurable constants `GIT_LOG_LIMIT`, `BEST_DISTANCE_THRESHOLD`, and `EXACT_PARENT_PREFERENCE` for better maintainability
-- Removed unused variables to clean up codebase
+- Removed unused variables and debug placeholders to clean up codebase
 - Replaced all magic numbers with named constants per code review feedback
 - Improved code readability and configurability
 
