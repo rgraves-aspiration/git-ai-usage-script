@@ -475,10 +475,6 @@ detect_parent_branch() {
         echo -e "   Graph line: $(echo "$commit_line" | cut -d: -f2-)" >&2
     fi
     
-    if [ "$DEBUG" = true ]; then
-        echo -e "   Analyzing surrounding graph context..." >&2
-    fi
-    
     # Check each candidate branch to see which one appears most recently before our commit
     local best_parent=""
     local best_distance=99999
